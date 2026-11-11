@@ -108,7 +108,7 @@ void main(){
  c*=1.-r2*uVig;
  gl_FragColor=vec4(c,1.);}`, {
   tScene: { value: null }, tBlur: { value: null }, tBloom: { value: null }, tBloom2: { value: null }, tAO: { value: null }, tRays: { value: null }, tDepth: { value: depthTex },
-  uExp: { value: 1.1 }, uBloom: { value: .7 }, uTilt: { value: .85 }, uFade: { value: 0 }, uVig: { value: .7 }, uSat: { value: 1.12 }, uTint: { value: new T.Color(1, 1, 1) },
+  uExp: { value: 1.1 }, uBloom: { value: .7 }, uTilt: { value: .85 }, uFade: { value: 0 }, uVig: { value: .85 }, uSat: { value: 1.0 }, uTint: { value: new T.Color(1, 1, 1) },
   uFocus: { value: 35 }, uRange: { value: 30 }, uNear: { value: 1.5 }, uFar: { value: 500 }, uAO: { value: .85 }, uRays: { value: 0 }, uRayCol: { value: new T.Color(1, .9, .7) },
 });
 /* suavizado FXAA sobre la imagen final + grano y fundido */
@@ -180,8 +180,8 @@ function enhance(mat, o = {}) {
         float rp2=vnoise(vWPos.xz*5.5-vec2(uTime*.2,uTime*.14));
         vec3 Vw=normalize(cameraPosition-vWPos);float fr=pow(1.-clamp(Vw.y,0.,1.),2.2);
         vec3 wc=mix(diffuseColor.rgb*.62,diffuseColor.rgb*1.2,rp);
-        wc=mix(wc,uSky,fr*.7);
-        wc+=smoothstep(.70,.78,rp*.55+rp2*.55)*.25*(1.-uIce);
+        wc=mix(wc,uSky,fr*.35);
+        wc+=smoothstep(.72,.8,rp*.55+rp2*.55)*.06*(1.-uIce);
         float foam=smoothstep(.74,.92,vShore+(rp2-.5)*.4+sin(vShore*16.-uTime*1.8)*.07)*(1.-uIce);
         wc+=smoothstep(.83,.9,vnoise(vWPos.xz*11.+floor(uTime*7.)*5.37))*uWet*.3;
         wc=mix(wc,vec3(1.),foam*.85);
@@ -190,26 +190,31 @@ function enhance(mat, o = {}) {
         diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.92,.95,1.),sn);` : ''}
         float csh=smoothstep(.5,.74,vnoise(vWPos.xz*.19+uTime*vec2(.045,.024)));
         diffuseColor.rgb*=(1.-csh*uCloud*.32)*(1.-uWet*.13);`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        ${o.bump ? `{vec2 bp=(vWPos.xz+vWPos.y*vec2(.37,.61))*${o.bs.toFixed(1)}${o.water ? '+uTime*vec2(.22,.15)' : ''};
+        float hb=vnoise(bp)+.5*vnoise(bp*2.7${o.water ? '-uTime*.35' : ''})+.25*vnoise(bp*6.1);
+        vec3 sx=dFdx(-vViewPosition),sy=dFdy(-vViewPosition);vec3 r1=cross(sy,normal),r2=cross(normal,sx);float det=dot(sx,r1);
+        vec3 gr=sign(det)*(dFdx(hb)*r1+dFdy(hb)*r2);normal=normalize(abs(det)*normal-gr*${o.bump.toFixed(3)}${o.water ? '*(1.-uIce*.85)' : ''});}` : ''}`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         ${o.rim !== 0 ? 'totalEmissiveRadiance+=uRim*pow(1.-clamp(dot(normalize(vWN),normalize(cameraPosition-vWPos)),0.,1.),3.)*diffuseColor.rgb;' : ''}`);
   };
   mat.customProgramCacheKey = () => JSON.stringify(o);
   return mat;
 }
-const std = (p, o) => enhance(new T.MeshStandardMaterial(Object.assign({ roughness: .9, metalness: 0 }, p)), o);
+const std = (p, o) => enhance(new T.MeshStandardMaterial(Object.assign({ roughness: .9, metalness: 0, envMapIntensity: .9 }, p)), o);
 const MAT = {
-  soil: std({ vertexColors: true, flatShading: true }, { snow: 0, noise: .2, scale: 3 }),
-  grass: std({ color: 0x8fc46a, vertexColors: true }, { noise: .26, scale: 1.7 }),
-  rockTop: std({ color: 0xa39c93, vertexColors: true, flatShading: true }, { noise: .2 }),
-  water: std({ color: 0x3f9fc4, roughness: .42, metalness: 0 }, { water: 1, snow: 0, rim: 0 }),
+  soil: std({ vertexColors: true, flatShading: true }, { snow: 0, noise: .3, scale: 4, bump: .06, bs: 5 }),
+  grass: std({ color: 0x8fc46a, vertexColors: true }, { noise: .34, scale: 2.3, bump: .03, bs: 9 }),
+  rockTop: std({ color: 0x8f8a84, vertexColors: true, flatShading: true }, { noise: .3, scale: 4, bump: .06, bs: 6 }),
+  water: std({ color: 0x2f7f9c, roughness: .07, metalness: 0, envMapIntensity: 1.5 }, { water: 1, snow: 0, rim: 0, bump: .03, bs: 3.5 }),
   flag: std({ vertexColors: true, side: T.DoubleSide, roughness: .8 }, { snow: 0, rim: 0 }),
   toy: std({ vertexColors: true, roughness: .7 }, { snow: 0 }),
   bird: new T.MeshStandardMaterial({ color: 0xf6f1e8, side: T.DoubleSide, roughness: 1 }),
-  tuft: std({ color: 0x7db85c, vertexColors: true }, { sway: .5, base: 0, snow: .8 }),
-  leaf: std({ color: 0x8ccf6c, vertexColors: true, flatShading: true }, { sway: .05, base: .1, snow: .85 }),
-  pine: std({ color: 0x4f8f5a, vertexColors: true, flatShading: true }, { sway: .035, base: .1, snow: .9 }),
-  rock: std({ vertexColors: true, flatShading: true, roughness: .95 }, { snow: .9 }),
-  build: std({ vertexColors: true, flatShading: true, roughness: .85 }, { snow: .9 }),
+  tuft: std({ color: 0x7db85c, vertexColors: true, side: T.DoubleSide }, { sway: .5, base: 0, snow: .8 }),
+  leaf: std({ color: 0x8ccf6c, vertexColors: true }, { sway: .05, base: .1, snow: .85, noise: .4, scale: 11 }),
+  pine: std({ color: 0x4f8f5a, vertexColors: true }, { sway: .035, base: .1, snow: .9, noise: .4, scale: 13 }),
+  rock: std({ vertexColors: true, flatShading: true, roughness: .95 }, { snow: .9, noise: .3, scale: 5, bump: .07, bs: 7 }),
+  build: std({ vertexColors: true, flatShading: true, roughness: .85 }, { snow: .9, noise: .16, scale: 14, bump: .022, bs: 17 }),
   smooth: std({ vertexColors: true, roughness: .8 }, { snow: .6 }),
   flower: std({ vertexColors: true, roughness: .7 }, { sway: .5, base: 0, snow: 0 }),
   glass: new T.MeshStandardMaterial({ color: 0xcfeee6, transparent: true, opacity: .34, roughness: .08, emissive: 0xffd27a, emissiveIntensity: 0, depthWrite: false }),
@@ -234,6 +239,18 @@ const GEO = {
   cone: new T.ConeGeometry(.5, 1, 7), cone4: new T.ConeGeometry(.5, 1, 4), ico: new T.IcosahedronGeometry(.5, 1),
   ico0: new T.IcosahedronGeometry(.5, 0), dod: new T.DodecahedronGeometry(.5, 0), oct: new T.OctahedronGeometry(.5, 0), roof: roofGeo(),
 };
+{ // copas lobuladas, ramas de conífera y rocas irregulares, con oscurecido por vértice
+  const f = (x, y, z) => Math.sin(x * 9 + y * 7) * Math.sin(y * 8 + z * 6) * Math.sin(z * 10 + x * 5);
+  const lg = new T.IcosahedronGeometry(.5, 2), lp = lg.attributes.position, ls = new Float32Array(lp.count);
+  for (let i = 0; i < lp.count; i++) { const x = lp.getX(i), y = lp.getY(i), z = lp.getZ(i), d = f(x, y, z), k = 1 + d * .2; lp.setXYZ(i, x * k, y * k, z * k); ls[i] = (.5 + .5 * sstep(-.45, .45, y)) * (1 + d * .5); }
+  lg.setAttribute('shade', new T.BufferAttribute(ls, 1)); GEO.leafy = lg;
+  const pg = new T.ConeGeometry(.5, 1, 11, 3).toNonIndexed(), pp = pg.attributes.position, ps = new Float32Array(pp.count);
+  for (let i = 0; i < pp.count; i++) { const x = pp.getX(i), y = pp.getY(i), z = pp.getZ(i), rad = Math.hypot(x, z), a = Math.atan2(z, x); if (rad > .01) { const k = 1 + .22 * Math.sin(a * 5 + y * 11) + .1 * Math.sin(a * 11); pp.setXYZ(i, x * k, y - rad * .22 * (1 + Math.sin(a * 7) * .5), z * k); } ps[i] = .5 + .6 * clamp(rad * 2) ; }
+  pg.setAttribute('shade', new T.BufferAttribute(ps, 1)); GEO.pineL = pg;
+  const rg = new T.IcosahedronGeometry(.5, 1), rp_ = rg.attributes.position;
+  for (let i = 0; i < rp_.count; i++) { const x = rp_.getX(i), y = rp_.getY(i), z = rp_.getZ(i), k = 1 + f(x * .6, y * .6, z * .6) * .5 + f(x * 1.7, z * 1.7, y * 1.7) * .14; rp_.setXYZ(i, x * k, y * k * .85, z * k); }
+  rg.computeVertexNormals(); GEO.rocky = rg;
+}
 function MX(x, y, z, sx = 1, sy = sx, sz = sx, ry = 0, rx = 0, rz = 0) {
   return new T.Matrix4().compose(new T.Vector3(x, y, z), new T.Quaternion().setFromEuler(new T.Euler(rx, ry, rz, 'YXZ')), new T.Vector3(sx, sy, sz));
 }
@@ -244,7 +261,7 @@ function merge(parts) {
   const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), colr = new Float32Array(n * 3); let o = 0;
   for (const [gg, col] of gs) {
     const c = gg.attributes.position.count; pos.set(gg.attributes.position.array, o * 3); nor.set(gg.attributes.normal.array, o * 3);
-    _c.set(col); for (let i = 0; i < c; i++) { colr[(o + i) * 3] = _c.r; colr[(o + i) * 3 + 1] = _c.g; colr[(o + i) * 3 + 2] = _c.b; }
+    _c.set(col); const sh = gg.attributes.shade; for (let i = 0; i < c; i++) { const k = sh ? sh.getX(i) : 1; colr[(o + i) * 3] = _c.r * k; colr[(o + i) * 3 + 1] = _c.g * k; colr[(o + i) * 3 + 2] = _c.b * k; }
     o += c; gg.dispose();
   }
   const g = new T.BufferGeometry();
@@ -327,19 +344,18 @@ const floaters = [];
 function treeParts(trunk, pine, leaf, r, x, y, z, s, forcePine) {
   const conifer = forcePine || r() < .5;
   if (conifer) {
-    cy(trunk, 0x7a5540, x, y, z, .05 * s, .26 * s);
-    const tint = vary(0xffffff, r, .1); let yy = y + .16 * s;
-    for (let i = 0; i < 3; i++) { const rad = (.3 - i * .075) * s, hh = (.4 - i * .03) * s; pine.push([GEO.cone, tint, MX(x, yy + hh / 2, z, rad * 2, hh, rad * 2, r() * TAU)]); yy += hh * .58; }
-    return y + 1.0 * s;
+    cy(trunk, 0x66483a, x, y, z, .05 * s, .34 * s, GEO.taper);
+    const tint = vary(0xffffff, r, .1); let yy = y + .14 * s;
+    for (let i = 0; i < 5; i++) { const k = i / 4, rad = lerp(.33, .09, k) * s, hh = lerp(.36, .26, k) * s; pine.push([GEO.pineL, tint, MX(x, yy + hh / 2, z, rad * 2, hh, rad * 2, r() * TAU)]); yy += hh * .52; }
+    return y + 1.05 * s;
   }
-  const birch = r() < .28;
-  cy(trunk, birch ? 0xe9e4d8 : 0x80593f, x, y, z, (birch ? .04 : .055) * s, (birch ? .46 : .36) * s);
-  if (birch) { y += .1 * s; bx(trunk, 0x4a423c, x, y + .1 * s, z, .085 * s, .02 * s, .085 * s); bx(trunk, 0x4a423c, x, y + .22 * s, z, .085 * s, .015 * s, .085 * s); }
-  const tint = birch ? new T.Color(1.12, 1.12, .62) : vary(0xffffff, r, .12);
-  sp(leaf, tint, x, y + .52 * s, z, .56 * s, .52 * s, .56 * s, GEO.ico, r() * TAU);
-  sp(leaf, tint, x + .16 * s, y + .42 * s, z + .08 * s, .34 * s, .32 * s, .34 * s, GEO.ico, r() * TAU);
-  sp(leaf, tint, x - .14 * s, y + .62 * s, z - .1 * s, .32 * s, .3 * s, .32 * s, GEO.ico, r() * TAU);
-  return y + .8 * s;
+  const birch = r() < .28, th = (birch ? .5 : .4) * s;
+  cy(trunk, birch ? 0xe6e1d5 : 0x735240, x, y, z, (birch ? .04 : .06) * s, th, GEO.taper);
+  if (birch) { bx(trunk, 0x4a423c, x, y + .14 * s, z, .075 * s, .02 * s, .075 * s); bx(trunk, 0x4a423c, x, y + .3 * s, z, .065 * s, .015 * s, .065 * s); }
+  else for (let i = 0; i < 2; i++) { const a = r() * TAU; trunk.push([GEO.cyl, 0x735240, MX(x + Math.cos(a) * .07 * s, y + th * .95, z + Math.sin(a) * .07 * s, .035 * s, .26 * s, .035 * s, -a, 0, .8)]); }
+  const tint = birch ? new T.Color(1.1, 1.12, .64) : vary(0xffffff, r, .12), cy0 = y + th + .16 * s;
+  for (let i = 0; i < 7; i++) { const a = r() * TAU, e = (r() - .25) * 1.3, d = i ? (.15 + r() * .1) * s : 0, bs = (i ? .27 + r() * .15 : .46) * s * (birch ? .85 : 1); leaf.push([GEO.leafy, tint, MX(x + Math.cos(a) * Math.cos(e) * d, cy0 + Math.sin(e) * d * .8, z + Math.sin(a) * Math.cos(e) * d, bs, bs * .88, bs, r() * TAU, r() * .6)]); }
+  return y + th + .5 * s;
 }
 
 /* ---------------------------------------------------------- partículas */
@@ -666,4 +682,13 @@ function makeWaterfall() {
      gl_FragColor=vec4(c*uLight,a*.92);}`,
   }));
   m.renderOrder = 2; return m;
+}
+
+/* iluminación basada en imagen: el cielo procedural se filtra y alimenta
+   la luz ambiente y los reflejos de todos los materiales físicos          */
+const pmrem = new T.PMREMGenerator(renderer), envScene = new T.Scene(); let envRT = null, envT = 0;
+{ const m = new T.Mesh(sky.geometry, sky.material); m.frustumCulled = false; envScene.add(m); }
+function updateEnv(dt, fast) {
+  if ((envT -= dt) > 0) return; envT = fast ? .5 : 5;
+  const old = envRT; envRT = pmrem.fromScene(envScene, 0, 1, 500); scene.environment = envRT.texture; if (old) old.dispose();
 }

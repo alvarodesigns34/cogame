@@ -101,6 +101,8 @@ const ACH = [
   ['pantry', 'Despensa llena', 'Guarda 40 de comida.', () => G.res.food >= 40],
   ['winter', 'Invierno sin siestas', 'Pasa un invierno sin que nadie hiberne ni se acueste sin cenar.', () => G.flags.cleanWinter],
   ['beacon', 'El Gran Farol', 'Enciende la luz que no se apaga.', () => has('beacon')],
+  ['finds', 'Buen ojo', 'Recoge 25 hallazgos.', () => (G.flags.finds || 0) >= 25],
+  ['streak', 'Palabra cumplida', 'Encadena 5 encargos seguidos.', () => G.streak >= 5],
   ['years', 'Tres primaveras', 'Llega al tercer año.', () => G.day >= 48],
 ];
 function checkAch() { if (!E) return; for (const [id, t, , ok] of ACH) if (!G.ach.includes(id) && ok()) { G.ach.push(id); toast('book', `Nuevo recuerdo en el cuaderno: <b>${t}</b>`); } }

@@ -4,10 +4,10 @@
 
 /* --------------------------------------------------------------- datos */
 const SEASONS = [
-  { name: 'Primavera', line: 'La tierra se despereza y llueve a menudo.', grass: 0x8fc46a, tuft: 0x7db85c, leaf: 0x9bd676, pine: 0x4f8f5a, tint: [1, 1, 1] },
-  { name: 'Verano', line: 'Días largos y secos: los huertos sin agua cerca sufren.', grass: 0xa0c45c, tuft: 0x8cb850, leaf: 0x5fa84a, pine: 0x3f8050, tint: [1.04, 1, .95] },
-  { name: 'Otoño', line: 'Cosecha generosa. El hogar empieza a pedir leña cada noche.', grass: 0xc2ae60, tuft: 0xc4a350, leaf: 0xe2823a, pine: 0x4d7a50, tint: [1.06, .98, .9] },
-  { name: 'Invierno', line: 'Los huertos duermen. Mantén el fuego y a los tuyos cerca del calor.', grass: 0xb4c0a6, tuft: 0xa9b59a, leaf: 0xa58f7c, pine: 0x4a7866, tint: [.95, .99, 1.07] },
+  { name: 'Primavera', line: 'La tierra se despereza y llueve a menudo.', grass: 0x6f9f4c, tuft: 0x86b65a, leaf: 0x7fb556, pine: 0x3f7048, tint: [1, 1, 1] },
+  { name: 'Verano', line: 'Días largos y secos: los huertos sin agua cerca sufren.', grass: 0x7e9c44, tuft: 0x93ae4e, leaf: 0x4c8a3c, pine: 0x356842, tint: [1.04, 1, .95] },
+  { name: 'Otoño', line: 'Cosecha generosa. El hogar empieza a pedir leña cada noche.', grass: 0x9c8a4c, tuft: 0xb89a4a, leaf: 0xc8702e, pine: 0x3f6644, tint: [1.06, .98, .9] },
+  { name: 'Invierno', line: 'Los huertos duermen. Mantén el fuego y a los tuyos cerca del calor.', grass: 0x8f9a84, tuft: 0x9aa58c, leaf: 0x8a7868, pine: 0x3f6656, tint: [.95, .99, 1.07] },
 ];
 const WX = {
   sun: { name: 'Despejado', note: 'Las colmenas dan +1.' }, rain: { name: 'Lluvia', note: 'Los huertos dan +1.' },
@@ -24,7 +24,7 @@ const DEF = {
   brazier: { name: 'Brasero', icon: 'brazier', cost: { wood: 2, stone: 3 }, desc: 'Lleva el calor a las 6 casillas contiguas. Quema 1 leña cada noche de invierno.' },
   granary: { name: 'Granero', icon: 'barn', cost: { wood: 6, stone: 4 }, desc: 'La despensa crece en 20. Sin graneros solo caben 30 de comida.' },
   greenhouse: { name: 'Invernadero', icon: 'glass', cost: { wood: 6, stone: 6 }, worker: 1, desc: '+2 comida todo el año, también en invierno. +1 si está dentro del calor.' },
-  beacon: { name: 'Gran Farol', icon: 'lantern', cost: { wood: 30, stone: 24, food: 24 }, desc: 'Una luz que el invierno no puede apagar. Calienta 3 casillas a la redonda sin gastar leña.' },
+  beacon: { name: 'Gran Farol', icon: 'lantern', cost: { wood: 40, stone: 30, food: 30 }, desc: 'Una luz que el invierno no puede apagar. Calienta 3 casillas a la redonda sin gastar leña.' },
   well: { name: 'Pozo', icon: 'well', cost: { stone: 3 }, desc: 'Cuenta como una charca para los huertos contiguos. Lleva el agua adonde no llega.' },
   fisher: { name: 'Pesquero', icon: 'fish', cost: { wood: 4 }, worker: 1, up: 1, desc: 'Debe tocar una charca. +1 comida por charca contigua (máx. 3). En invierno pesca en el hielo: solo 1.' },
   mill: { name: 'Molino', icon: 'mill', cost: { wood: 6, stone: 3 }, worker: 1, up: 1, desc: '+1 comida por cada huerto contiguo (máx. 3) y +1 si está sobre una colina. Sin grano en invierno.' },
@@ -36,7 +36,7 @@ const DEF = {
 const CATS = [['Producir', ['garden', 'lumber', 'quarry', 'fisher', 'hive', 'mill', 'greenhouse']], ['Habitar', ['cabin', 'well', 'brazier', 'granary', 'beacon']], ['Embellecer', ['flowerbed', 'lantern']], ['Terreno', ['plant', 'fell']]];
 let cat = 0;
 const visibleTools = () => CATS[cat][1].filter(t => G.unlocked.includes(t));
-const UPCOST = { 1: { wood: 3, stone: 3 }, 2: { wood: 4, stone: 2 } };
+const UPCOST = { 1: { wood: 4, stone: 4 }, 2: { wood: 5, stone: 3 } };
 const TERR = {
   meadow: { name: 'Prado', desc: 'Suelo libre para construir. Las colmenas vecinas liban en los prados que dejes sin ocupar.' },
   forest: { name: 'Bosque', desc: 'Cada leñador contiguo saca +1 leña al día. Puedes talarlo, pero no volverá solo.' },
@@ -52,7 +52,7 @@ const WISHES = [
   { t: 'Despensa de otoño', d: 'Construye un Granero para guardar comida de cara al invierno.', rw: { food: 5 }, un: ['greenhouse', 'upgrade'], ok: () => has('granary') },
   { t: 'Oficio fino', d: 'Mejora un edificio: tócalo y elige Mejorar.', rw: { stone: 3 }, un: [], ok: () => G.buildings.some(b => b.lv > 1) },
   { t: 'El largo invierno', d: 'Llega a la primavera del segundo año. Sin prisa.', rw: { wood: 6 }, un: ['beacon'], ok: () => G.day >= 24 },
-  { t: 'El Gran Farol', d: 'Reúne 30 de leña, 24 de piedra y 24 de comida, y enciende una luz que no se apague.', rw: {}, un: [], ok: () => has('beacon') },
+  { t: 'El Gran Farol', d: 'Reúne 40 de leña, 30 de piedra y 30 de comida, y enciende una luz que no se apague.', rw: {}, un: [], ok: () => has('beacon') },
 ];
 const IC = {
   food: 'M12 8c-4-2-7.5 1-7.5 5.2S8 20.5 12 20.5s7.5-3 7.5-7.3S16 6 12 8z M12 8c0-2 1-3.6 3-4.5',
@@ -207,9 +207,9 @@ function rebuildTile(t) {
   if (t.deco) { t.group.remove(t.deco); t.deco.traverse(o => o.geometry && o.geometry.dispose()); }
   const d = t.deco = new T.Group(); d.position.y = t.h; t.group.add(d); t.flowers = null; t.topH = .15;
   const r = mulberry(t.seed + 11), tuft = [], fl = [], rk = [], trunk = [], pine = [], leaf = [], sm = [];
-  const tufts = n => { for (let i = 0; i < n; i++) { const a = r() * TAU, rad = Math.sqrt(r()) * .78, x = Math.cos(a) * rad, z = Math.sin(a) * rad, tint = vary(0xffffff, r, .14); for (let j = 0; j < 3; j++) tuft.push([GEO.cone4, tint, MX(x + (j - 1) * .035, .06, z + (r() - .5) * .04, .045, .12 + r() * .1, .045, r() * 3, (r() - .5) * .5, (j - 1) * .35)]); } };
+  let bladeN = 0; const tufts = n => bladeN += n * 6;
   if (t.terrain === 'meadow') {
-    tufts(18 + (r() * 10 | 0));
+    tufts(24 + (r() * 12 | 0));
     if (r() < .3) { const a = r() * TAU, rad = .2 + r() * .45, bc = vary(0x6aa857, r, .12); sp(sm, bc, Math.cos(a) * rad, .1, Math.sin(a) * rad, .3, .22, .28); sp(sm, bc, Math.cos(a) * rad + .14, .08, Math.sin(a) * rad + .06, .2, .16, .2); }
     const pal = [0xffffff, 0xffd166, 0xf28fb1, 0xb79cf0, 0xff9f6b]; const pc = pal[r() * 5 | 0];
     for (let i = 0, n = 3 + (r() * 6 | 0); i < n; i++) { const a = r() * TAU, rad = Math.sqrt(r()) * .75; sp(fl, r() < .7 ? pc : pal[r() * 5 | 0], Math.cos(a) * rad, .075 + r() * .05, Math.sin(a) * rad, .06 + r() * .03); }
@@ -222,11 +222,22 @@ function rebuildTile(t) {
     if (r() < .6) { const a = r() * TAU, x = Math.cos(a) * .62, z = Math.sin(a) * .62; trunk.push([GEO.cyl, 0x8a6248, MX(x, .05, z, .1, .36, .1, a, 0, Math.PI / 2)]); for (let i = 0; i < 3; i++) tuft.push([GEO.cone4, 0xd8f0b0, MX(x + (r() - .5) * .3, .09, z + (r() - .5) * .3, .16, .13, .03, r() * 3, .6)]); }
     if (r() < .5) { const a = r() * TAU; cy(sm, 0xf2e6d0, Math.cos(a) * .7, 0, Math.sin(a) * .7, .015, .06); sm.push([GEO.cone, 0xd9503c, MX(Math.cos(a) * .7, .075, Math.sin(a) * .7, .08, .04, .08)]); }
   } else if (t.terrain === 'rock') {
-    for (let i = 0, n = 3 + (r() * 3 | 0); i < n; i++) { const a = r() * TAU, rad = r() * .5, s = .3 + r() * .42; sp(rk, vary(i % 3 ? 0x9d968e : 0x8b8590, r, .09), Math.cos(a) * rad, s * .28, Math.sin(a) * rad, s, s * (.7 + r() * .5), s * (.8 + r() * .3), GEO.dod, r() * TAU); t.topH = Math.max(t.topH, s * .7); }
+    for (let i = 0, n = 3 + (r() * 3 | 0); i < n; i++) { const a = r() * TAU, rad = r() * .5, s = .3 + r() * .42; sp(rk, vary(i % 3 ? 0x9d968e : 0x8b8590, r, .09), Math.cos(a) * rad, s * .28, Math.sin(a) * rad, s, s * (.7 + r() * .5), s * (.8 + r() * .3), GEO.rocky, r() * TAU); t.topH = Math.max(t.topH, s * .7); }
     tufts(5);
   } else {
     for (let i = 0, n = r() * 3 | 0; i < n; i++) { const a = r() * TAU, rad = r() * .6, x = Math.cos(a) * rad, z = Math.sin(a) * rad; cy(sm, vary(0x5faa58, r, .1), x, .005, z, .09 + r() * .05, .012, GEO.cyl); if (r() < .5) sp(sm, 0xf7a8c4, x + .03, .04, z, .06); }
     if (r() < .7) { const a = r() * TAU; for (let i = 0; i < 4; i++) { const x = Math.cos(a + i * .14) * .82, z = Math.sin(a + i * .14) * .82, hh = .28 + r() * .2; tuft.push([GEO.cone4, 0xc8e6a0, MX(x, hh / 2, z, .03, hh, .03)]); if (i % 2) sm.push([GEO.cyl, 0x7a5236, MX(x, hh + .02, z, .04, .1, .04)]); } }
+  }
+  if (bladeN) { // briznas finas: tres triángulos cada una, más oscuras en la base
+    const P = new Float32Array(bladeN * 27), Nn = new Float32Array(bladeN * 27), Cc = new Float32Array(bladeN * 27); let o = 0;
+    const put = (x, y, z, k, tc) => { P[o] = x; P[o + 1] = y; P[o + 2] = z; Nn[o + 1] = 1; Cc[o] = tc.r * k; Cc[o + 1] = tc.g * k; Cc[o + 2] = tc.b * k; o += 3; };
+    for (let i = 0; i < bladeN; i++) {
+      const a = r() * TAU, rad = Math.sqrt(r()) * .9, x = Math.cos(a) * rad, z = Math.sin(a) * rad, hh = .09 + r() * r() * .22, w = .016 + r() * .012, yw = r() * TAU, cx = Math.cos(yw) * w, cz = Math.sin(yw) * w, lx = (r() - .5) * .14, lz = (r() - .5) * .14, tc = vary(0xffffff, r, .16);
+      const b1 = [x - cx, 0, z - cz], b2 = [x + cx, 0, z + cz], m1 = [x - cx * .6 + lx * .4, hh * .55, z - cz * .6 + lz * .4], m2 = [x + cx * .6 + lx * .4, hh * .55, z + cz * .6 + lz * .4], tp = [x + lx, hh, z + lz];
+      put(...b1, .5, tc); put(...b2, .5, tc); put(...m2, .85, tc); put(...b1, .5, tc); put(...m2, .85, tc); put(...m1, .85, tc); put(...m1, .85, tc); put(...m2, .85, tc); put(...tp, 1.2, tc);
+    }
+    const bg = new T.BufferGeometry(); bg.setAttribute('position', new T.BufferAttribute(P, 3)); bg.setAttribute('normal', new T.BufferAttribute(Nn, 3)); bg.setAttribute('color', new T.BufferAttribute(Cc, 3));
+    const bm = new T.Mesh(bg, MAT.tuft); bm.receiveShadow = true; d.add(bm);
   }
   if (tuft.length) d.add(mk(tuft, MAT.tuft, false)); if (fl.length) { t.flowers = mk(fl, MAT.flower, false); d.add(t.flowers); }
   if (rk.length) d.add(mk(rk, MAT.rock)); if (trunk.length) d.add(mk(trunk, MAT.build)); if (pine.length) d.add(mk(pine, MAT.pine)); if (leaf.length) d.add(mk(leaf, MAT.leaf)); if (sm.length) d.add(mk(sm, MAT.smooth, false));
@@ -355,6 +366,7 @@ function upgrade(b) {
 }
 function build(type, t) {
   for (const [k, v] of Object.entries(DEF[type].cost || {})) G.res[k] -= v;
+  if (t.find) collect(t, true);
   if (type === 'plant') { G.flags.planted++; setSapling(t, 4); sfx.plant(); t.vy = -1; puff(tilePos(t), 6); }
   else if (type === 'fell') {
     t.terrain = 'meadow'; G.res.wood += 3; rebuildTile(t); t.vy = -2; sfx.chop(); const p = tilePos(t); puff(p, 14);
@@ -402,10 +414,11 @@ function checkWish() {
 async function endDay() {
   if (busy || !started) return; busy = true; setTool(null); select(null); setHover(null); $('#hud').classList.add('busy'); sfx.dusk(); gather = true; festOn = false;
   economy(); const ev = [], S = season(), W = weatherAt(G.day), hearthT = tmap.get('0,0');
-  const t0 = tod; tween(2.2, k => tod = lerp(t0, .775, k), ease.inOut);
-  await wait(.5); let i = 0;
-  for (const b of G.buildings) if (b.y && b.active && b.y.total > 0) { floatAt(b.tile, `+${b.y.total} ${ic(b.y.res)}`, '', b.model.userData.h); b.tile.vy = 1.3; sfx.pop(i++); await wait(.12); }
-  await wait(.45);
+  settleQuest(ev);
+  const t0 = tod; tween(1.7, k => tod = lerp(t0, .775, k), ease.inOut);
+  await wait(.3); let i = 0;
+  for (const b of G.buildings) if (b.y && b.active && b.y.total > 0) { floatAt(b.tile, `+${b.y.total} ${ic(b.y.res)}`, '', b.model.userData.h); b.tile.vy = 1.3; sfx.pop(i++); await wait(.07); }
+  await wait(.3);
   G.res.wood += E.prod.wood; G.res.stone += E.prod.stone;
   let food = G.res.food + E.prod.food; const short = Math.max(0, E.eat - food); food = Math.max(0, food - E.eat);
   if (food > E.cap.food) { ev.push(['barn', `La despensa está llena: ${food - E.cap.food} de comida no se pudo guardar.`]); food = E.cap.food; }
@@ -413,7 +426,7 @@ async function endDay() {
   floatAt(hearthT, `−${E.eat} ${ic('food')}`, 'neg', .9); sfx.eat();
   if (G.hungry) ev.push(['zzz', `No alcanzó la cena: ${G.hungry} ${G.hungry > 1 ? 'vecinos descansan' : 'vecino descansa'} hoy. Mañana será otro día.`]);
   renderRes();
-  await tween(1.7, k => tod = lerp(.775, .98, k), ease.inOut);
+  await tween(1.3, k => tod = lerp(.775, .98, k), ease.inOut);
   // noche: el fuego pide su leña
   let burnt = 0; const braz = G.buildings.filter(b => b.type === 'brazier');
   if (S >= 2) {
@@ -425,7 +438,7 @@ async function endDay() {
   if (burnt) { floatAt(hearthT, `−${burnt} ${ic('wood')}`, 'neg', .9); sfx.crackleBig(); }
   renderRes(); syncVisuals();
   const fest = G.day % 6 === 5 && E.charm >= 6;
-  if (fest) { festOn = true; festival(); await wait(5); } else await wait(1.5);
+  if (fest) { festOn = true; festival(); await wait(5); } else await wait(1);
   // amanecer
   G.day++; const nS = season(), prevHib = G.hib;
   for (const k in G.buff) if (G.buff[k] > 0) G.buff[k]--;
@@ -439,10 +452,10 @@ async function endDay() {
   if (G.hib > prevHib) ev.push(['snow', `${G.hib} ${G.hib > 1 ? 'vecinos hibernan' : 'vecino hiberna'} en cabañas fuera del calor. Un brasero cerca los despertará.`]);
   if (nS === 3 && G.hib + G.hungry > 0) G.flags.nap = true;
   if (G.day % 24 === 0) { if (!G.flags.nap) G.flags.cleanWinter = true; G.flags.nap = false; }
-  merchantDawn(ev);
+  merchantDawn(ev); spawnFinds(); rollQuest(); ev.push(['star', `<b>Encargo de hoy:</b> ${questText().toLowerCase()}. Premio: +${questReward()} ${RES[G.quest.res].toLowerCase()}.`]);
   gather = false; festOn = false; for (const v of villagers) { v.s = 0; v.dir = 1; v.dwell = rnd(1, 3); }
   refresh(); sfx.dawn(); applySeason(false);
-  await tween(2.6, k => tod = lerp(.98, 1.31, k), ease.inOut); tod = .31; dayClock = 0;
+  await tween(2, k => tod = lerp(.98, 1.31, k), ease.inOut); tod = .31; dayClock = 0;
   if (nS !== S) seasonCard(nS);
   ev.forEach(([i, m], k) => setTimeout(() => toast(i, m), k * 500));
   checkWish(); rollEvent(); save(); busy = false; $('#hud').classList.remove('busy'); updateHover();
@@ -461,7 +474,7 @@ function finale() {
 function save() {
   try {
     localStorage.setItem(SAVE, JSON.stringify({
-      v: 2, buff: G.buff, charmBonus: G.charmBonus, ach: G.ach, flags: G.flags, merchant: G.merchant, ev: G.ev, lastEv: G.lastEv, seed: G.seed, day: G.day, res: G.res, pop: G.pop, hungry: G.hungry, wish: G.wish, unlocked: G.unlocked, hearthLit: G.hearthLit, won: G.won, built: G.built,
+      v: 2, finds: G.finds, quest: G.quest, streak: G.streak, buff: G.buff, charmBonus: G.charmBonus, ach: G.ach, flags: G.flags, merchant: G.merchant, ev: G.ev, lastEv: G.lastEv, seed: G.seed, day: G.day, res: G.res, pop: G.pop, hungry: G.hungry, wish: G.wish, unlocked: G.unlocked, hearthLit: G.hearthLit, won: G.won, built: G.built,
       terr: tiles.map(t => t.terrain[0]).join(''), saps: tiles.filter(t => t.sap).map(t => [t.key, t.sap]),
       b: G.buildings.filter(b => b.type !== 'hearth').map(b => [b.type, b.tile.key, b.paused ? 1 : 0, b.lit ? 1 : 0, b.lv]),
     }));
@@ -470,8 +483,8 @@ function save() {
 function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE)); return s && s.v === 2 ? s : null; } catch (e) { return null; } }
 function newGame(sv) {
   clearWorld();
-  G = sv ? { seed: sv.seed, day: sv.day, res: sv.res, pop: sv.pop, hungry: sv.hungry, hib: 0, wish: sv.wish, unlocked: sv.unlocked, hearthLit: sv.hearthLit, won: sv.won, built: sv.built || 0, buildings: [], buff: sv.buff, charmBonus: sv.charmBonus, ach: sv.ach, flags: sv.flags, merchant: sv.merchant, ev: sv.ev, lastEv: sv.lastEv }
-    : { seed: (Math.random() * 1e9) | 0, day: 0, res: { food: 10, wood: 7, stone: 2 }, pop: 2, hungry: 0, hib: 0, wish: 0, unlocked: ['garden', 'lumber', 'fell'], hearthLit: true, won: false, built: 0, buildings: [], buff: { garden: 0, quarry: 0 }, charmBonus: 0, ach: [], flags: { traded: 0, festival: 0, up: 0, planted: 0, nap: false, cleanWinter: false }, merchant: null, ev: null, lastEv: 0 };
+  G = sv ? { seed: sv.seed, day: sv.day, res: sv.res, pop: sv.pop, hungry: sv.hungry, hib: 0, wish: sv.wish, unlocked: sv.unlocked, hearthLit: sv.hearthLit, won: sv.won, built: sv.built || 0, buildings: [], buff: sv.buff, charmBonus: sv.charmBonus, ach: sv.ach, flags: sv.flags, merchant: sv.merchant, ev: sv.ev, lastEv: sv.lastEv, finds: sv.finds || [], quest: sv.quest || null, streak: sv.streak || 0 }
+    : { seed: (Math.random() * 1e9) | 0, day: 0, res: { food: 10, wood: 7, stone: 2 }, pop: 2, hungry: 0, hib: 0, wish: 0, unlocked: ['garden', 'lumber', 'fell'], hearthLit: true, won: false, built: 0, buildings: [], buff: { garden: 0, quarry: 0 }, charmBonus: 0, ach: [], flags: { traded: 0, festival: 0, up: 0, planted: 0, nap: false, cleanWinter: false }, merchant: null, ev: null, lastEv: 0, finds: [], quest: null, streak: 0 };
   const terr = genTerrain(G.seed), tk = { m: 'meadow', f: 'forest', r: 'rock', w: 'water' }; let i = 0;
   for (const [k, v] of terr) { const t = makeTile(v.q, v.r, sv ? tk[sv.terr[i]] : v.terrain, v.lv); tiles.push(t); tmap.set(k, t); i++; }
   for (const t of tiles) if (t.terrain === 'water') capFor(t);
@@ -479,6 +492,7 @@ function newGame(sv) {
   if (sv) { for (const [type, key, p, l, lv] of sv.b) { const b = placeBuilding(type, tmap.get(key), true); b.paused = !!p; b.lit = !!l; b.lv = lv || 1; applyLevel(b); } for (const [key, d] of sv.saps) setSapling(tmap.get(key), d); }
   tod = .31; dayClock = 0; tool = null; selected = null; hover = null; fresh.clear();
   cat = 0; gather = false; setupWaterfall(); setupMerchant(true); setupLife(); applySeason(true); refresh();
+  if (sv && G.finds.length) attachFinds(); else spawnFinds(); if (!G.quest) rollQuest(); refresh();
 }
 
 /* ------------------------------------------------- estaciones y cielo */
@@ -524,7 +538,7 @@ function updateSky(dt, time) {
   if (e > -.04) { sun.position.copy(sunDir).multiplyScalar(36); sun.intensity = 3.3 * sstep(-.04, .3, e) * (1 - oc * .62); }
   else { sun.position.copy(moonDir).multiplyScalar(36); sun.intensity = 1.25 * sstep(.04, .3, -e) * (1 - oc * .4); sun.color.set(0x9fb6ff); }
   skyMix(e, 'hs', hemi.color).lerp(_g, oc * .5); skyMix(e, 'hg', hemi.groundColor);
-  hemi.intensity = lerp(.95, 1.05, dayF) + oc * .22 * dayF;
+  hemi.intensity = (lerp(.95, 1.05, dayF) + oc * .22 * dayF) * .5; updateEnv(dt, busy || !started);
   scene.fog.color.copy(skyU.uHor.value); scene.fog.density = lerp(.004, .0155, cur.fog) + cur.rain * .004 + cur.snowfall * .0035;
   mFinal.uniforms.uExp.value = lerp(1.32, 1.08, dayF); mFinal.uniforms.uTint.value.lerp(vis.tint, 1 - Math.exp(-dt * .6));
   // estaciones: interpolación suave de materiales
@@ -774,9 +788,10 @@ function showHint(t) { const h = $('#hint'); if (!t) { h.classList.add('hidden')
 function renderWish() {
   const el = $('#wish'), w = WISHES[G.wish];
   const steps = `<div class="steps">${WISHES.map((_, i) => `<i class="${i < G.wish ? 'on' : ''}"></i>`).join('')}</div>`;
-  if (!w) { el.innerHTML = `<div class="eyebrow">Valle en calma</div><h3>Todo anhelo, cumplido</h3><p>Sigue cuidando el valle a tu ritmo. Las noches traen aurora.</p>${steps}`; return; }
+  const qd = G.quest ? `<div class="quest">${ic('star')}<span><b>Encargo de hoy</b>${questText()}<i>+${questReward()} ${ic(G.quest.res)}${G.streak ? ` · racha ×${G.streak}` : ''}</i></span></div>` : '';
+  if (!w) { el.innerHTML = `<div class="eyebrow">Valle en calma</div><h3>Todo anhelo, cumplido</h3><p>Sigue cuidando el valle a tu ritmo. Las noches traen aurora.</p>${steps}${qd}`; return; }
   const rw = Object.entries(w.rw).map(([k, v]) => `+${v} ${ic(k)}`).join(' ');
-  el.innerHTML = `<div class="eyebrow">Anhelo ${G.wish + 1} de ${WISHES.length}</div><h3>${w.t}</h3><p>${w.d}</p>${steps}${rw || w.un.length ? `<div class="rw">${rw}${w.un.length ? ` · abre ${w.un.map(u => DEF[u] ? DEF[u].name : 'Mejoras').join(', ')}` : ''}</div>` : ''}`;
+  el.innerHTML = `<div class="eyebrow">Anhelo ${G.wish + 1} de ${WISHES.length}</div><h3>${w.t}</h3><p>${w.d}</p>${steps}${rw || w.un.length ? `<div class="rw">${rw}${w.un.length ? ` · abre ${w.un.map(u => DEF[u] ? DEF[u].name : 'Mejoras').join(', ')}` : ''}</div>` : ''}${qd}`;
 }
 function renderInfo() {
   const el = $('#info'), t = selected; if (!t) { el.classList.add('hidden'); return; }
@@ -856,7 +871,8 @@ function updateHover() {
   } else {
     if (t !== selected) { t.ovC.setRGB(1, 1, 1); t.ovA = .2; t.lift = .06; }
     let name, line = '';
-    if (t.b) { const b = t.b; name = DEF[b.type].name; if (b.y) line = b.paused ? 'En pausa' : !b.active ? '<i class="warn" style="font-style:normal">Sin manos libres</i>' : b.y.total ? `<em>+${b.y.total} ${ic(b.y.res)}</em> hoy` : (b.y.note || 'No rinde hoy'); else if (b.type === 'cabin') line = b.cold ? '<i class="warn" style="font-style:normal">Hibernando</i>' : `${b.residents}/${b.capN} vecinos`; }
+    if (t.find) { name = FIND[t.find.type].n; line = `<em>+${t.find.amt} ${ic(FIND[t.find.type].res)}</em> clic para recoger`; }
+    else if (t.b) { const b = t.b; name = DEF[b.type].name; if (b.y) line = b.paused ? 'En pausa' : !b.active ? '<i class="warn" style="font-style:normal">Sin manos libres</i>' : b.y.total ? `<em>+${b.y.total} ${ic(b.y.res)}</em> hoy` : (b.y.note || 'No rinde hoy'); else if (b.type === 'cabin') line = b.cold ? '<i class="warn" style="font-style:normal">Hibernando</i>' : `${b.residents}/${b.capN} vecinos`; }
     else { name = t.sap ? 'Arboleda joven' : t.lv && t.terrain === 'meadow' ? 'Colina' : TERR[t.terrain].name; if (t.sap) line = `Bosque en ${t.sap} día${t.sap > 1 ? 's' : ''}`; }
     hov.innerHTML = `<b>${name}</b>${line ? `<span>${line}</span>` : ''}`; hov.classList.remove('hidden'); hov.dataset.up = t.b ? t.b.model.userData.h + .15 : t.topH + .3;
   }
@@ -866,7 +882,8 @@ function clickTile(t) {
   if (tool) {
     const c = canPlace(tool, t);
     if (c.ok) build(tool, t); else { sfx.error(); t.vy = .8; if (c.why) floatAt(t, c.why, 'note'); }
-  } else { select(selected === t ? null : t); t.vy = -1.1; t.wig = 1; sfx.select(); if (t.terrain === 'water') audio.tone(600, { to: 300, d: .15, g: .12 }); updateHover(); }
+  } else if (t.find) { collect(t); updateHover(); }
+  else { select(selected === t ? null : t); t.vy = -1.1; t.wig = 1; sfx.select(); if (t.terrain === 'water') audio.tone(600, { to: 300, d: .15, g: .12 }); updateHover(); }
 }
 
 /* ------------------------------------------------------ cámara y entrada */
@@ -934,6 +951,7 @@ function help() {
    <dt>${ic('snow')}Estaciones</dt><dd>Seis días cada una. El pronóstico de arriba a la izquierda te avisa de lluvia, niebla y nevadas.</dd>
    <dt>${ic('heart')}Encanto</dt><dd>Jardines, farolillos y mejoras embellecen el valle. Con 6 de encanto hay fiesta cada fin de estación.</dd>
    <dt>${ic('balloon')}Mercader</dt><dd>Cada cinco días llega en globo y propone trueques. Tócalo o usa su aviso.</dd>
+   <dt>${ic('star')}Hallazgos y encargo</dt><dd>Cada mañana aparecen bayas, setas, ramas y cantos que brillan: tócalos para recogerlos. El encargo del día da premio y alarga tu racha.</dd>
    <dt>${ic('zzz')}Sin castigo</dt><dd>Si falta comida o leña nadie se pierde: descansan y al día siguiente se vuelve a intentar.</dd>
   </dl>
   <p><kbd>arrastrar</kbd> girar · <kbd>rueda</kbd> acercar · <kbd>clic derecho</kbd> desplazar o cancelar · <kbd>1</kbd>–<kbd>9</kbd> herramientas · <kbd>Tab</kbd> categoría · <kbd>J</kbd> cuaderno · <kbd>P</kbd> modo foto · <kbd>Espacio</kbd> terminar el día · <kbd>Q</kbd> <kbd>E</kbd> girar · <kbd>WASD</kbd> mover</p>

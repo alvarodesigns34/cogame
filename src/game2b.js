@@ -111,6 +111,7 @@ function setupLife() {
 }
 function updateLife(dt, time) {
   if (!G) return; updateFar(dt, time);
+  for (const t of tiles) if (t.find) { const m = t.find.m.userData.bob; m.position.y = .04 + Math.abs(Math.sin(time * 2.2 + t.q)) * .06; m.rotation.y = time * .8 + t.r; if (Math.random() < dt * 2.5) { const p = tilePos(t, .25); fxAdd.spawn(p.x + rnd(-.25, .25), p.y, p.z + rnd(-.25, .25), 0, rnd(.2, .5), 0, rnd(.6, 1.1), .06, 2.6, 2.2, 1.1, 1); } }
   for (const s of sheep) {
     if (s.t.b || s.t.sap || s.t.terrain !== 'meadow') { const free = tiles.filter(t => t.terrain === 'meadow' && !t.b && !t.sap && t.d >= 2); if (!free.length) { s.m.visible = false; continue; } s.t.group.remove(s.m); s.t = free[Math.random() * free.length | 0]; s.t.group.add(s.m); s.m.visible = true; }
     if ((s.wait -= dt) <= 0) { s.wait = rnd(3, 9); const a = Math.random() * TAU, d = Math.random() * .55; s.tx = Math.cos(a) * d; s.tz = Math.sin(a) * d; }
@@ -120,4 +121,49 @@ function updateLife(dt, time) {
   }
   const iced = U.uIce.value > .5;
   for (const d of ducks) { d.a += d.sp * dt; d.m.visible = !iced; d.m.position.set(Math.cos(d.a) * d.rad, d.t.h + .005 + Math.sin(time * 2.2 + d.a) * .008, Math.sin(d.a) * d.rad); d.m.rotation.y = -d.a + (d.sp > 0 ? 0 : Math.PI); d.m.rotation.z = Math.sin(time * 2.2 + d.a) * .06; }
+}
+
+/* ------------------------------------------- hallazgos y encargo diario */
+const FIND = { berry: { n: 'Bayas silvestres', res: 'food' }, shroom: { n: 'Setas', res: 'food' }, twig: { n: 'Ramas secas', res: 'wood' }, pebble: { n: 'Canto rodado', res: 'stone' } };
+function findModel(type, r) {
+  const g = new T.Group(), p = [];
+  if (type === 'berry') { sp(p, 0x4f8f45, 0, .12, 0, .3, .24, .3, GEO.leafy); for (let i = 0; i < 7; i++) { const a = r() * TAU, e = r() * 1.1; sp(p, 0xd23b4a, Math.cos(a) * Math.cos(e) * .14, .13 + Math.sin(e) * .11, Math.sin(a) * Math.cos(e) * .14, .06); } }
+  else if (type === 'shroom') for (let i = 0; i < 3; i++) { const x = (i - 1) * .1, z = (r() - .5) * .12, h = .08 + r() * .07; cy(p, 0xf3ead8, x, 0, z, .025, h); p.push([GEO.cone, i % 2 ? 0xc9542f : 0xd97a3a, MX(x, h + .03, z, .13, .07, .13)]); }
+  else if (type === 'twig') for (let i = 0; i < 4; i++) p.push([GEO.cyl, vary(0x9a6b4a, r, .1), MX((r() - .5) * .16, .04 + i * .02, (r() - .5) * .16, .045, .34, .045, r() * 3, 0, Math.PI / 2)]);
+  else for (let i = 0; i < 3; i++) sp(p, vary(0xb9c0c8, r, .06), (i - 1) * .11, .06, (r() - .5) * .1, .15, .11, .13, GEO.rocky, r() * 3);
+  const m = mk(p, MAT.toy); m.scale.setScalar(1.6); g.add(m, makeGlow(2.1, 0xffe9a0, 1.3, 'find')); g.userData.bob = m; return g;
+}
+function attachFinds() { for (const [key, type, amt] of G.finds) { const t = tmap.get(key); if (!t || t.find) continue; const m = findModel(type, mulberry(t.seed + G.day)); m.position.y = t.h; t.group.add(m); t.find = { type, amt, m }; } }
+function clearFinds() { for (const t of tiles) if (t.find) { t.group.remove(t.find.m); t.find = null; } G.finds = []; }
+function spawnFinds() {
+  clearFinds(); const r = mulberry(G.seed + G.day * 131), n = Math.min(7, 3 + Math.floor(E.charm / 8));
+  const pool = tiles.filter(t => !t.b && !t.sap && t.terrain !== 'water');
+  for (let i = 0; i < n && pool.length; i++) { const t = pool.splice(r() * pool.length | 0, 1)[0]; const type = t.terrain === 'forest' ? (r() < .5 ? 'twig' : 'shroom') : t.terrain === 'rock' ? 'pebble' : r() < .6 ? 'berry' : 'twig'; G.finds.push([t.key, type, 1 + (r() < .35 ? 1 : 0)]); }
+  attachFinds();
+}
+function collect(t, quiet) {
+  const f = t.find; if (!f) return; t.group.remove(f.m); t.find = null; G.finds = G.finds.filter(x => x[0] !== t.key);
+  const k = FIND[f.type].res; G.res[k] = k === 'food' ? Math.min(E.cap.food, G.res.food + f.amt) : G.res[k] + f.amt; G.flags.finds = (G.flags.finds || 0) + 1;
+  floatAt(t, `+${f.amt} ${ic(k)}`, '', .4); burst(tilePos(t), 14, 2.6, 2.2, 1, 1.1, .07); sfx.pop(G.flags.finds % 8); t.vy = -1.3;
+  if (!quiet) { refresh(); checkWish(); }
+}
+const QUESTS = {
+  food: { d: q => `Produce ${q.x} de comida hoy`, ok: q => E.prod.food >= q.x }, wood: { d: q => `Produce ${q.x} de leña hoy`, ok: q => E.prod.wood >= q.x },
+  stone: { d: q => `Produce ${q.x} de piedra hoy`, ok: q => E.prod.stone >= q.x }, finds: { d: () => 'Recoge todos los hallazgos del valle', ok: () => G.finds.length === 0 },
+  hands: { d: () => 'Que no sobren manos ni falten: todos con tarea', ok: () => E.free === 0 && E.need <= E.workers },
+  build: { d: () => 'Construye o mejora algo hoy', ok: q => G.built + G.flags.up > q.x }, charm: { d: q => `Sube el encanto a ${q.x}`, ok: q => E.charm >= q.x },
+};
+const questText = () => G.quest ? QUESTS[G.quest.id].d(G.quest) : '';
+const questReward = () => 3 + Math.min(3, Math.floor(G.streak / 3));
+function rollQuest() {
+  economy(); const r = mulberry(G.seed + G.day * 977), ids = ['finds', 'hands', 'build', 'wood'];
+  if (season() !== 3) { ids.push('food'); if (has('quarry')) ids.push('stone'); if (G.unlocked.includes('flowerbed')) ids.push('charm'); }
+  const id = ids[r() * ids.length | 0], x = { food: E.prod.food + 2, wood: E.prod.wood + 2, stone: E.prod.stone + 1, build: G.built + G.flags.up, charm: E.charm + 1 }[id] || 0;
+  G.quest = { id, x, res: ['food', 'wood', 'stone'].sort((a, b) => G.res[a] - G.res[b])[0] };
+}
+function settleQuest(ev) {
+  if (!G.quest) return; const q = G.quest;
+  if (QUESTS[q.id].ok(q)) { const n = questReward(); G.streak++; G.res[q.res] = q.res === 'food' ? Math.min(E.cap.food, G.res.food + n) : G.res[q.res] + n; ev.push(['star', `<b>Encargo cumplido</b> · racha ×${G.streak}: +${n} ${RES[q.res].toLowerCase()}.`]); sfx.wish(); }
+  else if (G.streak) { ev.push(['star', 'El encargo de ayer quedó sin hacer: la racha vuelve a empezar.']); G.streak = 0; }
+  G.quest = null;
 }
