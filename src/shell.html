@@ -70,8 +70,34 @@ svg.i{width:1.15em;height:1.15em;fill:none;stroke:currentColor;stroke-width:1.7;
 #wish .steps i.on{background:var(--accent)}
 #wish.flash{transform:scale(1.04)}
 
-#bar{bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:4px;padding:6px;border-radius:22px;max-width:calc(100vw - 32px);overflow-x:auto;scrollbar-width:none;transition:opacity .28s}
+#bar{bottom:16px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;padding:6px;border-radius:22px;max-width:calc(100vw - 32px);overflow-x:auto;scrollbar-width:none;transition:opacity .28s}
 #bar::-webkit-scrollbar{display:none}
+.cats{display:flex;gap:2px;padding:0 2px 6px}
+.cat{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;font-weight:650;color:var(--ink-faint);padding:4px 10px;border-radius:999px;transition:background .18s,color .18s;white-space:nowrap}
+.cat:hover{color:var(--ink)} .cat.on{color:var(--ink);background:rgba(255,236,205,.12)}
+.cat.dot::after{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-left:6px;vertical-align:.1em}
+.tools{display:flex;gap:4px}
+#chip{top:auto;right:16px;display:flex;align-items:center;gap:10px;padding:10px 16px 10px 12px;border-radius:999px;font-size:.84rem;font-weight:600;text-align:left;transition:transform .28s var(--ease-out),opacity .28s}
+#chip svg{color:var(--accent);font-size:1.2rem} #chip small{display:block;font-weight:400;font-size:.72rem;color:var(--ink-muted)}
+#chip:hover{transform:translateY(-2px)}
+#photo-hint{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);font-size:.78rem;color:var(--ink);opacity:.75;text-shadow:0 1px 8px rgba(30,15,5,.8);letter-spacing:.04em;pointer-events:none;transition:opacity .6s}
+.offers{display:flex;flex-direction:column;gap:8px;margin:16px 0 4px}
+.offer{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--hairline);border-radius:14px;font-size:.95rem;font-weight:600}
+.offer .arrow{color:var(--ink-faint)} .offer .left{margin-left:auto;font-size:.74rem;font-weight:500;color:var(--ink-faint)}
+.offer button{padding:8px 16px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:.82rem}
+.offer button:disabled{opacity:.35;cursor:default}
+.choices{display:flex;flex-direction:column;gap:8px;margin-top:20px}
+.choices button{text-align:left;padding:14px 16px;border:1px solid var(--hairline-strong);border-radius:14px;transition:background .18s,transform .18s var(--ease-out);font-weight:650}
+.choices button small{display:block;font-weight:400;color:var(--ink-muted);font-size:.82rem;margin-top:2px}
+.choices button:hover:not(:disabled){background:rgba(255,236,205,.1);transform:translateX(4px)}
+.choices button:disabled{opacity:.4;cursor:default}
+.achs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0 4px}
+.ach{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--hairline);border-radius:12px;font-size:.8rem;color:var(--ink-faint);line-height:1.35}
+.ach b{display:block;color:var(--ink-muted);font-weight:650} .ach svg{margin-top:2px;opacity:.35}
+.ach.on{border-color:var(--hairline-strong);color:var(--ink-muted)} .ach.on b{color:var(--ink)} .ach.on svg{color:var(--accent);opacity:1}
+#info .acts{flex-wrap:wrap} #info .acts button.go{background:var(--accent);color:var(--accent-ink);border-color:transparent;flex-basis:100%} #info .acts button.poor{opacity:.5;flex-basis:100%}
+#info .acts button svg{font-size:.8rem}
+body.photo #hud,body.photo #toast{opacity:0!important;pointer-events:none}
 .tool{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:70px;padding:8px 8px 7px;border-radius:16px;border:1px solid transparent;transition:background .18s,transform .18s var(--ease-out),border-color .18s,opacity .18s;flex:none}
 .tool svg{font-size:1.45rem;stroke-width:1.5}
 .tool .n{font-size:.74rem;font-weight:600;letter-spacing:.005em}
@@ -90,7 +116,7 @@ svg.i{width:1.15em;height:1.15em;fill:none;stroke:currentColor;stroke-width:1.7;
 .tool.sep::before{content:"";position:absolute;left:-7px;top:12px;bottom:12px;width:1px;background:var(--hairline)}
 @keyframes toolin{from{opacity:0;transform:translateY(16px) scale(.9)}to{opacity:1;transform:none}}
 
-#hint{bottom:104px;left:50%;transform:translateX(-50%);padding:10px 16px;border-radius:14px;max-width:min(520px,calc(100vw - 32px));font-size:.84rem;line-height:1.45;color:var(--ink-muted);transition:opacity .18s,transform .28s var(--ease-out);text-align:left}
+#hint{bottom:136px;left:50%;transform:translateX(-50%);padding:10px 16px;border-radius:14px;max-width:min(520px,calc(100vw - 32px));font-size:.84rem;line-height:1.45;color:var(--ink-muted);transition:opacity .18s,transform .28s var(--ease-out);text-align:left}
 #hint b{color:var(--ink);font-weight:650;font-family:var(--display);font-size:1rem;margin-right:6px}
 #hint.hidden{transform:translateX(-50%) translateY(8px)}
 
@@ -175,23 +201,26 @@ svg.i{width:1.15em;height:1.15em;fill:none;stroke:currentColor;stroke-width:1.7;
 kbd{font-family:var(--ui);font-size:.74rem;border:1px solid var(--hairline-strong);border-radius:6px;padding:1px 6px;color:var(--ink)}
 
 @media (max-width:900px){
-  #wish{top:auto;bottom:112px;right:12px;width:212px;padding:10px 12px}
-  #wish p{font-size:.78rem} #wish .rw{display:none}
   #res{top:12px;left:12px;right:60px;transform:none;flex-wrap:wrap;gap:6px}
   .pill{padding:6px 10px 6px 8px;gap:6px} .pill .v{font-size:.9rem}
+  .pill[data-tip]:hover::after{display:none}
   #date{top:98px;left:12px;padding:10px 12px;min-width:0}
   #date h2{font-size:1.25rem} #date .wxnote{display:none}
   #sys{top:12px;right:12px;flex-direction:column}
-  #toast{top:auto;bottom:190px;left:12px;width:min(262px,60vw)}
+  #wish{top:232px;left:12px;right:auto;bottom:auto;width:auto;max-width:62vw;padding:8px 12px}
+  #wish h3{font-size:1rem;margin:2px 0 0} #wish p,#wish .rw,#wish .steps{display:none}
+  #toast{top:auto;bottom:250px;left:12px;width:min(262px,64vw)}
   #bar{bottom:12px;left:12px;right:12px;transform:none;max-width:none}
-  #endday{bottom:98px;right:12px;padding:12px 16px 12px 14px}
+  .tools{overflow-x:auto;scrollbar-width:none} .cats{overflow-x:auto;scrollbar-width:none}
+  #endday{bottom:178px;right:12px;padding:12px 16px 12px 14px}
   #endday small{display:none}
-  #hint{bottom:166px;left:12px;right:12px;transform:none;max-width:none}
+  #hint{bottom:240px;left:12px;right:12px;transform:none;max-width:none}
   #hint.hidden{transform:translateY(8px)}
-  #info{bottom:98px;left:12px;width:min(272px,calc(100vw - 24px))}
+  #info{bottom:178px;left:12px;width:min(272px,calc(100vw - 24px))}
+  .achs{grid-template-columns:1fr}
+  #modal .card{padding:24px 20px 20px} #modal .stats{gap:20px;flex-wrap:wrap}
   #title{background:linear-gradient(0deg,rgba(28,18,14,.82) 0%,rgba(28,18,14,.3) 55%,rgba(28,18,14,0) 80%);padding:24px}
 }
-@media (max-width:900px) and (max-height:520px){#wish{display:none}}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
@@ -204,16 +233,20 @@ kbd{font-family:var(--ui);font-size:.74rem;border:1px solid var(--hairline-stron
   <section id="res"></section>
   <nav id="sys">
     <button class="sysb" id="b-snd" data-tip="Sonido (M)" aria-label="Sonido"></button>
+    <button class="sysb" id="b-book" data-tip="Cuaderno del valle (J)" aria-label="Cuaderno"></button>
+    <button class="sysb" id="b-photo" data-tip="Modo foto (P)" aria-label="Modo foto"></button>
     <button class="sysb" id="b-help" data-tip="Cómo se juega (H)" aria-label="Ayuda"></button>
     <button class="sysb" id="b-menu" data-tip="Empezar otro valle" aria-label="Nuevo valle"></button>
   </nav>
   <aside id="wish" class="panel"></aside>
   <aside id="info" class="panel hidden"></aside>
+  <button id="chip" class="panel hidden"></button>
   <div id="hint" class="panel hidden"></div>
   <div id="bar" class="panel"></div>
   <button id="endday"></button>
 </div>
 <div id="toast"></div>
+<div id="photo-hint" class="hidden">Modo foto · clic o Esc para volver</div>
 <div id="season"><div class="eyebrow"></div><h1></h1><p></p></div>
 
 <div id="title">

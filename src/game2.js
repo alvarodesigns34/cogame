@@ -16,19 +16,27 @@ const WX = {
 const RES = { food: 'Comida', wood: 'Leña', stone: 'Piedra' };
 const DEF = {
   hearth: { name: 'El Hogar', icon: 'flame', desc: 'El corazón del valle. Cobija a 2 habitantes y calienta 2 casillas a la redonda. Pide leña cada noche de otoño (1) e invierno (2).' },
-  garden: { name: 'Huerto', icon: 'sprout', cost: { wood: 3 }, worker: 1, desc: '+1 comida al día. +1 por charca contigua (máx. 2), +1 junto a una colmena, +1 con lluvia y +1 en otoño. En verano pierde 1 si no tiene agua al lado. Duerme en invierno.' },
-  lumber: { name: 'Leñador', icon: 'axe', cost: { wood: 2 }, worker: 1, desc: '+1 leña al día por cada bosque contiguo (máx. 3).' },
-  cabin: { name: 'Cabaña', icon: 'house', cost: { wood: 5, stone: 1 }, desc: 'Hogar para 2 habitantes más. En invierno debe quedar dentro del calor o sus vecinos hibernarán.' },
-  quarry: { name: 'Cantera', icon: 'pick', cost: { wood: 4 }, worker: 1, desc: '+1 piedra al día por cada roquedal contiguo (máx. 3). La niebla la frena (−1).' },
-  hive: { name: 'Colmena', icon: 'hive', cost: { wood: 3 }, desc: '+1 comida por cada 2 prados libres contiguos (máx. 2) y +1 los días de sol. No necesita manos y mejora los huertos vecinos (+1).' },
+  garden: { up: 1, name: 'Huerto', icon: 'sprout', cost: { wood: 3 }, worker: 1, desc: '+1 comida al día. +1 por charca contigua (máx. 2), +1 junto a una colmena, +1 con lluvia y +1 en otoño. En verano pierde 1 si no tiene agua al lado. Duerme en invierno.' },
+  lumber: { up: 1, name: 'Leñador', icon: 'axe', cost: { wood: 2 }, worker: 1, desc: '+1 leña al día por cada bosque contiguo (máx. 3).' },
+  cabin: { up: 2, name: 'Cabaña', icon: 'house', cost: { wood: 5, stone: 1 }, desc: 'Hogar para 2 habitantes más. En invierno debe quedar dentro del calor o sus vecinos hibernarán.' },
+  quarry: { up: 1, name: 'Cantera', icon: 'pick', cost: { wood: 4 }, worker: 1, desc: '+1 piedra al día por cada roquedal contiguo (máx. 3). La niebla la frena (−1).' },
+  hive: { up: 1, name: 'Colmena', icon: 'hive', cost: { wood: 3 }, desc: '+1 comida por cada 2 prados libres contiguos (máx. 2) y +1 los días de sol. No necesita manos y mejora los huertos vecinos (+1).' },
   brazier: { name: 'Brasero', icon: 'brazier', cost: { wood: 2, stone: 3 }, desc: 'Lleva el calor a las 6 casillas contiguas. Quema 1 leña cada noche de invierno.' },
-  granary: { name: 'Granero', icon: 'barn', cost: { wood: 6, stone: 4 }, desc: 'La despensa crece en 20. Sin graneros solo caben 20 de comida.' },
+  granary: { name: 'Granero', icon: 'barn', cost: { wood: 6, stone: 4 }, desc: 'La despensa crece en 20. Sin graneros solo caben 30 de comida.' },
   greenhouse: { name: 'Invernadero', icon: 'glass', cost: { wood: 6, stone: 6 }, worker: 1, desc: '+2 comida todo el año, también en invierno. +1 si está dentro del calor.' },
   beacon: { name: 'Gran Farol', icon: 'lantern', cost: { wood: 30, stone: 24, food: 24 }, desc: 'Una luz que el invierno no puede apagar. Calienta 3 casillas a la redonda sin gastar leña.' },
+  well: { name: 'Pozo', icon: 'well', cost: { stone: 3 }, desc: 'Cuenta como una charca para los huertos contiguos. Lleva el agua adonde no llega.' },
+  fisher: { name: 'Pesquero', icon: 'fish', cost: { wood: 4 }, worker: 1, up: 1, desc: 'Debe tocar una charca. +1 comida por charca contigua (máx. 3). En invierno pesca en el hielo: solo 1.' },
+  mill: { name: 'Molino', icon: 'mill', cost: { wood: 6, stone: 3 }, worker: 1, up: 1, desc: '+1 comida por cada huerto contiguo (máx. 3) y +1 si está sobre una colina. Sin grano en invierno.' },
+  flowerbed: { name: 'Jardín', icon: 'flower', cost: { food: 2 }, desc: '+2 de encanto. Para las colmenas vecinas vale por 2 prados libres.' },
+  lantern: { name: 'Farolillo', icon: 'lamp', cost: { wood: 1, stone: 1 }, desc: '+1 de encanto, +2 si alumbra una cabaña contigua.' },
   plant: { name: 'Plantar', icon: 'tree', cost: { food: 2 }, tool: 1, desc: 'Siembra una arboleda en un prado. Será bosque en 4 días.' },
   fell: { name: 'Talar', icon: 'stump', tool: 1, desc: 'Convierte un bosque en prado y da 3 de leña al instante. El bosque no vuelve solo.' },
 };
-const BAR = ['garden', 'lumber', 'cabin', 'quarry', 'hive', 'brazier', 'granary', 'greenhouse', 'beacon', 'plant', 'fell'];
+const CATS = [['Producir', ['garden', 'lumber', 'quarry', 'fisher', 'hive', 'mill', 'greenhouse']], ['Habitar', ['cabin', 'well', 'brazier', 'granary', 'beacon']], ['Embellecer', ['flowerbed', 'lantern']], ['Terreno', ['plant', 'fell']]];
+let cat = 0;
+const visibleTools = () => CATS[cat][1].filter(t => G.unlocked.includes(t));
+const UPCOST = { 1: { wood: 3, stone: 3 }, 2: { wood: 4, stone: 2 } };
 const TERR = {
   meadow: { name: 'Prado', desc: 'Suelo libre para construir. Las colmenas vecinas liban en los prados que dejes sin ocupar.' },
   forest: { name: 'Bosque', desc: 'Cada leñador contiguo saca +1 leña al día. Puedes talarlo, pero no volverá solo.' },
@@ -38,9 +46,11 @@ const TERR = {
 const WISHES = [
   { t: 'Un primer surco', d: 'Construye un Huerto pegado a una charca.', rw: { wood: 3 }, un: ['cabin'], ok: () => G.buildings.some(b => b.type === 'garden' && nbs(b.tile).some(n => n.terrain === 'water')) },
   { t: 'Leña para el hogar', d: 'Levanta un Leñador que toque al menos 2 bosques.', rw: { stone: 2 }, un: ['quarry', 'plant'], ok: () => G.buildings.some(b => b.type === 'lumber' && nbs(b.tile).filter(n => n.terrain === 'forest').length >= 2) },
-  { t: 'Vecinos nuevos', d: 'Haz sitio en una Cabaña y espera: sed 4 habitantes.', rw: { food: 4 }, un: ['hive'], ok: () => G.pop >= 4 },
-  { t: 'Piedra y miel', d: 'Construye una Cantera y una Colmena.', rw: { stone: 3 }, un: ['brazier', 'granary'], ok: () => has('quarry') && has('hive') },
-  { t: 'Despensa de otoño', d: 'Construye un Granero para guardar comida de cara al invierno.', rw: { food: 5 }, un: ['greenhouse'], ok: () => has('granary') },
+  { t: 'Vecinos nuevos', d: 'Haz sitio en una Cabaña y espera: sed 4 habitantes.', rw: { food: 4 }, un: ['hive', 'fisher'], ok: () => G.pop >= 4 },
+  { t: 'Piedra y miel', d: 'Construye una Cantera y una Colmena.', rw: { stone: 3 }, un: ['well', 'brazier', 'flowerbed', 'lantern'], ok: () => has('quarry') && has('hive') },
+  { t: 'Un valle bonito', d: 'Jardines y farolillos dan encanto. Llega a 5 de encanto.', rw: { food: 4 }, un: ['granary', 'mill'], ok: () => E && E.charm >= 5 },
+  { t: 'Despensa de otoño', d: 'Construye un Granero para guardar comida de cara al invierno.', rw: { food: 5 }, un: ['greenhouse', 'upgrade'], ok: () => has('granary') },
+  { t: 'Oficio fino', d: 'Mejora un edificio: tócalo y elige Mejorar.', rw: { stone: 3 }, un: [], ok: () => G.buildings.some(b => b.lv > 1) },
   { t: 'El largo invierno', d: 'Llega a la primavera del segundo año. Sin prisa.', rw: { wood: 6 }, un: ['beacon'], ok: () => G.day >= 24 },
   { t: 'El Gran Farol', d: 'Reúne 30 de leña, 24 de piedra y 24 de comida, y enciende una luz que no se apague.', rw: {}, un: [], ok: () => has('beacon') },
 ];
@@ -70,6 +80,16 @@ const IC = {
   mute: 'M4 9.500v5h3.500l4.500 4v-13l-4.500 4z M16 9.500l5 5 M21 9.500l-5 5',
   help: 'M9.200 9.200a3 3 0 1 1 4.300 2.700c-.900.500-1.500 1.100-1.500 2.300 M12 17.600v.400 M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z',
   seed: 'M12 3v4 M12 17v4 M3 12h4 M17 12h4 M12 8.500a3.500 3.500 0 1 0 0 7 3.500 3.500 0 0 0 0-7z',
+  heart: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z', charm: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z',
+  fish: 'M3 12c3-4.5 8-5.5 12-3l5-3v12l-5-3c-4 2.5-9 1.5-12-3z M8 11.2v.6',
+  well: 'M6 20v-8h12v8z M4 20h16 M5 12l7-6 7 6 M12 12v4',
+  mill: 'M9 21l1.5-10h3L15 21z M12 9.5L5 4 M12 9.5l7-5.5 M12 9.5l-5.5 7 M12 9.5l5.5 7',
+  flower: 'M12 21v-8 M12 13c-3 0-5-2-5-6l2.5 2L12 5l2.5 4L17 7c0 4-2 6-5 6z M12 18c-2 0-3.5-1-4-2.5 M12 19c2 0 3.5-1 4-2.5',
+  lamp: 'M12 3v3 M8.5 6h7l1.5 8H7z M10 14v2h4v-2 M12 16v5 M9 21h6',
+  book: 'M5 4.5h10a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3z M5 17a3 3 0 0 1 3-3h10 M9 8.5h5',
+  camera: 'M4 8h3.5L9 5.5h6L16.5 8H20v11H4z M12 10.5a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
+  balloon: 'M12 3a6 6 0 0 0-6 6c0 3.5 3 5.5 4.5 7.5h3C15 14.5 18 12.5 18 9a6 6 0 0 0-6-6z M10.5 18.5h3V21h-3z M12 3v13.5',
+  up: 'M12 19V6 M6.5 11.5L12 6l5.5 5.5', check: 'M5 12.5l4.5 4.5L19 7.5',
   pause: 'M9 6v12 M15 6v12', zzz: 'M5 6h6l-6 7h6 M14 12h5l-5 6h5', star: 'M12 3.500l2.500 5.500 6 .700-4.500 4 1.300 5.800L12 16.600 6.700 19.500 8 13.700l-4.500-4 6-.700z',
   hands: 'M12 4.200a3.300 3.300 0 1 0 0 6.600 3.300 3.300 0 0 0 0-6.600z M5 20c0-4 3-6.500 7-6.500 M16 15v6 M13 18h6',
 };
@@ -80,7 +100,8 @@ let G = null, E = null, busy = false, started = false;
 const tiles = [], tmap = new Map();
 let tool = null, hover = null, selected = null;
 let tod = .31, dayClock = 0, todLock = null;
-const SAVE = 'rescoldo.v1';
+const SAVE = 'rescoldo.v2';
+let SPEED = 1;
 const season = (d = G.day) => Math.floor(d / 6) % 4;
 const has = t => G.buildings.some(b => b.type === t);
 const count = t => G.buildings.filter(b => b.type === t).length;
@@ -96,25 +117,27 @@ function weatherAt(day) {
 /* ------------------------------------------------- generación del mapa */
 function genTerrain(seed) {
   const r = mulberry(seed), all = [];
-  for (let q = -RADIUS; q <= RADIUS; q++) for (let rr = -RADIUS; rr <= RADIUS; rr++) if (Math.abs(q + rr) <= RADIUS) all.push({ q, r: rr, d: hdist({ q, r: rr }, { q: 0, r: 0 }), terrain: 'meadow' });
+  for (let q = -RADIUS; q <= RADIUS; q++) for (let rr = -RADIUS; rr <= RADIUS; rr++) if (Math.abs(q + rr) <= RADIUS) all.push({ q, r: rr, d: hdist({ q, r: rr }, { q: 0, r: 0 }), terrain: 'meadow', lv: 0 });
   const m = new Map(all.map(t => [hkey(t.q, t.r), t]));
+  const at = (t, d) => m.get(hkey(t.q + d[0], t.r + d[1]));
   const near = (a, ring) => { const x = Math.cos(a) * ring * SQ3, z = Math.sin(a) * ring * SQ3; let best = null, bd = 1e9; for (const t of all) { const d = (hx(t.q, t.r) - x) ** 2 + (hz(t.q, t.r) - z) ** 2; if (d < bd && t.d >= 2) { bd = d; best = t; } } return best; };
   const grow = (start, n, terr, minD = 2) => {
     const set = []; const add = t => { t.terrain = terr; set.push(t); };
     if (start.terrain === 'meadow') add(start); let guard = 0;
-    while (set.length < n && guard++ < 200) {
-      const s = set[r() * set.length | 0] || start; const [dq, dr] = DIRS[r() * 6 | 0]; const t = m.get(hkey(s.q + dq, s.r + dr));
-      if (t && t.terrain === 'meadow' && t.d >= minD) add(t);
-    }
+    while (set.length < n && guard++ < 300) { const s = set[r() * set.length | 0] || start, t = at(s, DIRS[r() * 6 | 0]); if (t && t.terrain === 'meadow' && t.d >= minD) add(t); }
+    return set;
   };
   const a0 = r() * TAU;
-  grow(near(a0, 2.3), 4 + (r() * 2 | 0), 'water');
-  grow(near(a0 + 2.6 + r() * .6, 3.4), 2, 'water', 3);
-  grow(near(a0 + Math.PI + (r() - .5) * .8, 3.3), 6, 'rock', 3);
-  grow(near(a0 + 1.3 + r() * .4, 3), 6, 'forest');
-  grow(near(a0 - 1.3 - r() * .4, 3), 5, 'forest');
-  grow(near(a0 + Math.PI * .72, 2.2), 3, 'forest');
-  grow(near(a0 - .2, 3.9), 2, 'forest', 3);
+  const pond = grow(near(a0, 2.4), 5 + (r() * 2 | 0), 'water');
+  // un arroyo lleva la charca hasta el borde, donde cae en cascada
+  let c = pond.reduce((a, b) => b.d > a.d ? b : a, pond[0]), guard = 0;
+  while (c && c.d < RADIUS && guard++ < 8) { const o = DIRS.map(d => at(c, d)).filter(n => n && n.d > c.d); const n = o[r() * o.length | 0]; if (!n) break; n.terrain = 'water'; c = n; }
+  grow(near(a0 + 2.5 + r() * .6, 4), 3, 'water', 3);
+  const rocks = grow(near(a0 + Math.PI + (r() - .5) * .8, 4), 8, 'rock', 3);
+  rocks.forEach((t, i) => t.lv = i < 3 ? 2 : 1);
+  let hills = 0; for (const t of all) if (hills < 6 && t.terrain === 'meadow' && t.d >= 2 && DIRS.some(d => { const n = at(t, d); return n && n.terrain === 'rock'; }) && r() < .65) { t.lv = 1; hills++; }
+  grow(near(a0 + 1.3 + r() * .4, 3.6), 8, 'forest'); grow(near(a0 - 1.3 - r() * .4, 3.6), 7, 'forest');
+  grow(near(a0 + Math.PI * .72, 2.4), 4, 'forest'); grow(near(a0 - .25, 4.8), 3, 'forest', 3); grow(near(a0 + Math.PI * 1.3, 4.6), 3, 'forest', 3);
   return m;
 }
 
@@ -123,14 +146,15 @@ const hexFlat = new T.CircleGeometry(.9, 6).rotateX(-Math.PI / 2).rotateY(Math.P
 const pickGeo = new T.CylinderGeometry(1, 1, 1, 6).translate(0, .5, 0);
 const pickMat = new T.MeshBasicMaterial({ visible: false });
 const picks = [];
-function makeTile(q, r, terrain) {
-  const t = { q, r, key: hkey(q, r), terrain, d: hdist({ q, r }, { q: 0, r: 0 }), b: null, sap: 0, sapModel: null, y: 0, vy: 0, lift: 0, ovC: new T.Color(1, 1, 1), ovA: 0, wig: 0 };
+function makeTile(q, r, terrain, lv = 0) {
+  const t = { q, r, key: hkey(q, r), terrain, lv, d: hdist({ q, r }, { q: 0, r: 0 }), b: null, sap: 0, sapModel: null, y: 0, vy: 0, lift: 0, ovC: new T.Color(1, 1, 1), ovA: 0, wig: 0 };
   t.seed = (Math.imul(q + 40, 7919) ^ Math.imul(r + 40, 104729) ^ G.seed) >>> 0;
   const rr = mulberry(t.seed);
   t.h = terrain === 'water' ? -.1 : terrain === 'rock' ? .14 + rr() * .14 : .02 + rr() * .06 + (t.d === 0 ? 0 : Math.sin(q * 1.3 + r * .7) * .025);
+  t.h += lv * .3;
   const g = t.group = new T.Group(); g.position.set(hx(q, r), 0, hz(q, r)); g.userData.tile = t;
   // columna de tierra y roca: más honda hacia el centro → isla flotante
-  const depth = 1.0 + (RADIUS - t.d) * .55 + rr() * .8, top = t.h - (terrain === 'water' ? .1 : .13);
+  const depth = 1.0 + lv * .3 + (RADIUS - t.d) * .5 + rr() * .8, top = t.h - (terrain === 'water' ? .1 : .13);
   const sg = new T.CylinderGeometry(1, .7 + rr() * .16, depth, 6, 2); sg.translate(0, top - depth / 2, 0);
   const sp_ = sg.attributes.position, col = new Float32Array(sp_.count * 3);
   const c1 = new T.Color(terrain === 'water' ? 0xb9a37c : 0x7d5a44), c2 = new T.Color(0x66504a), c3 = new T.Color(0x4c4854);
@@ -150,7 +174,18 @@ function makeTile(q, r, terrain) {
 function capFor(t) {
   if (t.capMesh) { t.group.remove(t.capMesh); t.capMesh.geometry.dispose(); }
   let m;
-  if (t.terrain === 'water') { m = new T.Mesh(new T.CylinderGeometry(1, 1, .1, 6).translate(0, t.h - .05, 0), MAT.water); m.receiveShadow = true; }
+  if (t.terrain === 'water') {
+    // abanico de 6 triángulos; aShore marca las orillas con tierra para pintar espuma
+    const pos = [], sh = [], nor = [];
+    for (let k = 0; k < 6; k++) {
+      const a1 = (-30 + 60 * k) * Math.PI / 180, a2 = a1 + Math.PI / 3, am = (a1 + a2) / 2;
+      const d = DIRS.find(([dq, dr]) => { const an = Math.atan2(hz(dq, dr), hx(dq, dr)) - am; return Math.abs(Math.atan2(Math.sin(an), Math.cos(an))) < .1; });
+      const n = tmap.get(hkey(t.q + d[0], t.r + d[1])), land = n ? (n.terrain !== 'water' ? 1 : 0) : .75;
+      pos.push(0, t.h, 0, Math.cos(a2), t.h, Math.sin(a2), Math.cos(a1), t.h, Math.sin(a1)); sh.push(0, land, land); nor.push(0, 1, 0, 0, 1, 0, 0, 1, 0);
+    }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new T.Float32BufferAttribute(nor, 3)); g.setAttribute('aShore', new T.Float32BufferAttribute(sh, 1));
+    m = new T.Mesh(g, MAT.water); m.receiveShadow = true;
+  }
   else {
     const g = new T.CylinderGeometry(.945, 1, .13, 6).translate(0, t.h - .065, 0); const rr = mulberry(t.seed + 5);
     const k = t.terrain === 'forest' ? .8 + rr() * .08 : .94 + rr() * .12; const c = new Float32Array(g.attributes.position.count * 3).fill(k);
@@ -167,14 +202,15 @@ function rebuildTile(t) {
   const tufts = n => { for (let i = 0; i < n; i++) { const a = r() * TAU, rad = Math.sqrt(r()) * .78, x = Math.cos(a) * rad, z = Math.sin(a) * rad, tint = vary(0xffffff, r, .14); for (let j = 0; j < 3; j++) tuft.push([GEO.cone4, tint, MX(x + (j - 1) * .035, .06, z + (r() - .5) * .04, .045, .12 + r() * .1, .045, r() * 3, (r() - .5) * .5, (j - 1) * .35)]); } };
   if (t.terrain === 'meadow') {
     tufts(7 + (r() * 6 | 0));
+    if (r() < .3) { const a = r() * TAU, rad = .2 + r() * .45, bc = vary(0x6aa857, r, .12); sp(sm, bc, Math.cos(a) * rad, .1, Math.sin(a) * rad, .3, .22, .28); sp(sm, bc, Math.cos(a) * rad + .14, .08, Math.sin(a) * rad + .06, .2, .16, .2); }
     const pal = [0xffffff, 0xffd166, 0xf28fb1, 0xb79cf0, 0xff9f6b]; const pc = pal[r() * 5 | 0];
     for (let i = 0, n = 3 + (r() * 6 | 0); i < n; i++) { const a = r() * TAU, rad = Math.sqrt(r()) * .75; sp(fl, r() < .7 ? pc : pal[r() * 5 | 0], Math.cos(a) * rad, .075 + r() * .05, Math.sin(a) * rad, .06 + r() * .03); }
     if (r() < .35) sp(rk, vary(0x9d968e, r, .1), (r() - .5) * 1.1, .03, (r() - .5) * 1.1, .16, .1, .13, GEO.dod, r() * 3);
   } else if (t.terrain === 'forest') {
     const pts = []; let guard = 0;
     while (pts.length < 3 + (r() * 2 | 0) && guard++ < 40) { const a = r() * TAU, rad = .12 + r() * .5, x = Math.cos(a) * rad, z = Math.sin(a) * rad; if (pts.every(p => (p[0] - x) ** 2 + (p[1] - z) ** 2 > .12)) pts.push([x, z]); }
-    for (const [x, z] of pts) t.topH = Math.max(t.topH, treeParts(trunk, pine, leaf, r, x, 0, z, .8 + r() * .5));
-    tufts(4);
+    for (const [x, z] of pts) { const lf = leaf.length, s = .8 + r() * .5; t.topH = Math.max(t.topH, treeParts(trunk, pine, leaf, r, x, 0, z, s)); if (leaf.length > lf && r() < .6) for (let i = 0; i < 6; i++) { const a = r() * TAU, e = r() * 1.2; sp(fl, r() < .5 ? 0xffd9e6 : 0xffffff, x + Math.cos(a) * Math.cos(e) * .27 * s, .52 * s + Math.sin(e) * .25 * s, z + Math.sin(a) * Math.cos(e) * .27 * s, .06); } }
+    tufts(4); d.add(makeBlob(2.3, .3));
     if (r() < .5) { const a = r() * TAU; cy(sm, 0xf2e6d0, Math.cos(a) * .7, 0, Math.sin(a) * .7, .015, .06); sm.push([GEO.cone, 0xd9503c, MX(Math.cos(a) * .7, .075, Math.sin(a) * .7, .08, .04, .08)]); }
   } else if (t.terrain === 'rock') {
     for (let i = 0, n = 3 + (r() * 3 | 0); i < n; i++) { const a = r() * TAU, rad = r() * .5, s = .3 + r() * .42; sp(rk, vary(i % 3 ? 0x9d968e : 0x8b8590, r, .09), Math.cos(a) * rad, s * .28, Math.sin(a) * rad, s, s * (.7 + r() * .5), s * (.8 + r() * .3), GEO.dod, r() * TAU); t.topH = Math.max(t.topH, s * .7); }
@@ -191,7 +227,7 @@ const fitPick = t => t.pick.scale.y = .3 + (t.b ? t.b.model.userData.h * .8 : t.
 function clearWorld() {
   for (const t of tiles) { world.remove(t.group); t.group.traverse(o => { if (o.geometry && o.geometry !== hexFlat && o.geometry !== pickGeo && o.geometry !== glowGeo && !Object.values(GEO).includes(o.geometry)) o.geometry.dispose(); }); }
   tiles.length = 0; tmap.clear(); picks.length = 0;
-  for (const v of villagers) world.remove(v.m); villagers.length = 0;
+  for (const v of villagers) world.remove(v.m); villagers.length = 0; if (waterfall) { world.remove(waterfall.m); waterfall = null; }
   for (const el of badges.values()) el.remove(); badges.clear();
 }
 function tilePos(t, up = 0) { return new T.Vector3(t.group.position.x, t.h + t.y + up + world.position.y, t.group.position.z); }
@@ -202,42 +238,53 @@ function isWarm(t) {
   for (const b of G.buildings) { if (b.type === 'brazier' && b.lit && hdist(b.tile, t) <= 1) return true; if (b.type === 'beacon' && hdist(b.tile, t) <= 3) return true; }
   return false;
 }
-function calcYield(type, t, S, W) {
+function calcYield(type, t, S, W, lv = 1) {
   const nb = nbs(t), parts = []; let res = 'food', note = '';
   const cnt = terr => nb.filter(n => n.terrain === terr).length;
   if (type === 'garden') {
     if (S === 3) note = 'Duerme bajo la nieve';
     else {
-      parts.push(['Tierra labrada', 1]); const w = Math.min(2, cnt('water'));
-      if (w) parts.push(['Charca contigua', w]); else if (S === 1) parts.push(['Sequía de verano', -1]);
+      parts.push(['Tierra labrada', 1]); const w = Math.min(2, cnt('water') + nb.filter(n => n.b && n.b.type === 'well').length);
+      if (w) parts.push(['Agua contigua', w]); else if (S === 1) parts.push(['Sequía de verano', -1]);
       if (nb.some(n => n.b && n.b.type === 'hive')) parts.push(['Abejas vecinas', 1]);
-      if (W === 'rain') parts.push(['Lluvia', 1]); if (S === 2) parts.push(['Cosecha de otoño', 1]);
+      if (W === 'rain') parts.push(['Lluvia', 1]); if (S === 2) parts.push(['Cosecha de otoño', 1]); if (G.buff.garden > 0) parts.push(['Semillas raras', 1]);
     }
   } else if (type === 'lumber') { res = 'wood'; const f = Math.min(3, cnt('forest')); if (f) parts.push(['Bosque contiguo', f]); else note = 'Sin bosque al lado'; }
-  else if (type === 'quarry') { res = 'stone'; const f = Math.min(3, cnt('rock')); if (f) { parts.push(['Roquedal contiguo', f]); if (W === 'fog') parts.push(['Niebla', -1]); } else note = 'Sin roca al lado'; }
+  else if (type === 'quarry') { res = 'stone'; const f = Math.min(3, cnt('rock')); if (f) { parts.push(['Roquedal contiguo', f]); if (W === 'fog') parts.push(['Niebla', -1]); if (G.buff.quarry > 0) parts.push(['Veta abierta', 1]); } else note = 'Sin roca al lado'; }
   else if (type === 'hive') {
     if (S === 3) note = 'Las abejas invernan'; else if (W === 'fog') note = 'Con niebla no salen';
-    else { const v = Math.min(2, Math.floor(nb.filter(n => n.terrain === 'meadow' && !n.b && !n.sap).length / 2)); if (v) { parts.push(['Prados libres', v]); if (W === 'sun') parts.push(['Día de sol', 1]); } else note = 'Necesita 2 prados libres al lado'; }
+    else { const v = Math.min(2, Math.floor((nb.filter(n => n.terrain === 'meadow' && !n.b && !n.sap).length + 2 * nb.filter(n => n.b && n.b.type === 'flowerbed').length) / 2)); if (v) { parts.push(['Prados libres', v]); if (W === 'sun') parts.push(['Día de sol', 1]); } else note = 'Necesita 2 prados libres al lado'; }
+  } else if (type === 'fisher') { const w = Math.min(3, cnt('water')); if (!w) note = 'Sin charca al lado'; else if (S === 3) parts.push(['Pesca en el hielo', 1]); else parts.push(['Charca contigua', w]); }
+  else if (type === 'mill') {
+    if (S === 3) note = 'Sin grano que moler';
+    else { const g = Math.min(3, nb.filter(n => n.b && n.b.type === 'garden').length); if (g) parts.push(['Huertos vecinos', g]); else note = 'Sin huertos al lado'; if (t.lv >= 1) parts.push(['Viento de colina', 1]); }
   } else if (type === 'greenhouse') { parts.push(['Bajo cristal', 2]); if (isWarm(t)) parts.push(['Dentro del calor', 1]); }
   else return null;
+  if (lv > 1 && parts.reduce((a, p) => a + p[1], 0) > 0) parts.push(['Mejorado', 1]);
   return { res, parts, note, total: Math.max(0, parts.reduce((a, p) => a + p[1], 0)) };
 }
 function economy() {
-  const S = season(), W = weatherAt(G.day); let hib = 0, idx = 0, cabins = 0;
-  for (const b of G.buildings) if (b.type === 'cabin') { b.residents = clamp(G.pop - 2 - 2 * idx, 0, 2); idx++; cabins++; b.cold = S === 3 && !isWarm(b.tile); if (b.cold) hib += b.residents; }
+  const S = season(), W = weatherAt(G.day); let hib = 0, left = G.pop - 2, capPop = 2, charm = G.charmBonus; const types = new Set();
+  for (const b of G.buildings) {
+    if (b.type !== 'hearth') types.add(b.type); if (b.lv > 1) charm++;
+    if (b.type === 'cabin') { b.capN = b.lv > 1 ? 3 : 2; capPop += b.capN; b.residents = clamp(left, 0, b.capN); left -= b.residents; b.cold = S === 3 && !isWarm(b.tile); if (b.cold) hib += b.residents; }
+    else if (b.type === 'flowerbed') charm += 2; else if (b.type === 'beacon') charm += 5;
+    else if (b.type === 'lantern') charm += nbs(b.tile).some(n => n.b && n.b.type === 'cabin') ? 2 : 1;
+  }
+  charm += Math.floor(types.size / 2);
   G.hib = hib; G.hungry = clamp(G.hungry, 0, Math.max(0, G.pop - 2 - hib));
   let free = G.pop - hib - G.hungry, need = 0; const prod = { food: 0, wood: 0, stone: 0 };
   for (const b of G.buildings) {
     if (DEF[b.type].worker) { if (!b.paused) need++; b.active = !b.paused && free > 0; if (b.active) free--; } else b.active = true;
-    b.y = calcYield(b.type, b.tile, S, W); if (b.y && b.active) prod[b.y.res] += b.y.total;
+    b.y = calcYield(b.type, b.tile, S, W, b.lv); if (b.y && b.active) prod[b.y.res] += b.y.total;
   }
   let burn = 0; if (S === 2) burn = 1; if (S === 3) burn = (W === 'snow' ? 3 : 2) + count('brazier');
-  E = { prod, eat: G.pop - hib, burn, free, need, workers: G.pop - hib - G.hungry, cap: { food: 20 + 20 * count('granary'), pop: 2 + 2 * cabins } };
+  E = { prod, eat: G.pop - hib, burn, free, need, charm, workers: G.pop - hib - G.hungry, cap: { food: 30 + 20 * count('granary'), pop: capPop } };
   return E;
 }
 function totalProd() {
   const S = season(), W = weatherAt(G.day), p = { food: 0, wood: 0, stone: 0 };
-  for (const b of G.buildings) { if (!(b.virtual || b.active)) continue; const y = calcYield(b.type, b.tile, S, W); if (y) p[y.res] += y.total; }
+  for (const b of G.buildings) { if (!(b.virtual || b.active)) continue; const y = calcYield(b.type, b.tile, S, W, b.lv || 1); if (y) p[y.res] += y.total; }
   return p;
 }
 const afford = type => Object.entries(DEF[type].cost || {}).every(([k, v]) => G.res[k] >= v);
@@ -247,6 +294,7 @@ function canPlace(type, t) {
   if (t.b || t.sap) return { ok: false, why: 'Casilla ocupada' };
   if (t.terrain !== 'meadow') return { ok: false, why: 'Solo sobre prado' };
   if (type === 'beacon' && has('beacon')) return { ok: false, why: 'Ya brilla un Gran Farol' };
+  if (type === 'fisher' && !nbs(t).some(n => n.terrain === 'water')) return { ok: false, why: 'Necesita una charca al lado' };
   if (!afford(type)) return { ok: false, why: 'Faltan recursos' };
   return { ok: true };
 }
@@ -260,10 +308,15 @@ function previewDelta(type, t) {
 }
 function synergyTiles(type, t) {
   const nb = nbs(t);
-  if (type === 'garden') return nb.filter(n => n.terrain === 'water' || (n.b && n.b.type === 'hive'));
+  const bt = (n, ...ts) => n.b && ts.includes(n.b.type);
+  if (type === 'garden') return nb.filter(n => n.terrain === 'water' || bt(n, 'hive', 'well', 'mill'));
+  if (type === 'fisher') return nb.filter(n => n.terrain === 'water');
+  if (type === 'mill' || type === 'well') return nb.filter(n => bt(n, 'garden'));
+  if (type === 'flowerbed') return nb.filter(n => bt(n, 'hive'));
+  if (type === 'lantern') return nb.filter(n => bt(n, 'cabin'));
   if (type === 'lumber') return nb.filter(n => n.terrain === 'forest');
   if (type === 'quarry') return nb.filter(n => n.terrain === 'rock');
-  if (type === 'hive') return nb.filter(n => (n.terrain === 'meadow' && !n.b && !n.sap) || (n.b && n.b.type === 'garden'));
+  if (type === 'hive') return nb.filter(n => (n.terrain === 'meadow' && !n.b && !n.sap) || bt(n, 'garden', 'flowerbed'));
   if (type === 'brazier') return nb;
   if (type === 'beacon') return tiles.filter(n => n !== t && hdist(n, t) <= 3);
   if (type === 'fell') return nb.filter(n => n.b && n.b.type === 'lumber');
@@ -273,8 +326,10 @@ const WARM_TOOLS = ['cabin', 'brazier', 'greenhouse', 'beacon'];
 
 function placeBuilding(type, t, silent) {
   const r = mulberry(t.seed + 99), model = MODELS[type](r);
-  const b = { type, tile: t, paused: false, lit: true, model, active: true };
-  model.position.y = t.h; t.group.add(model); t.b = b; t.deco.visible = false; G.buildings.push(b); fitPick(t);
+  const b = { type, tile: t, paused: false, lit: true, model, active: true, lv: 1 };
+  model.position.y = t.h;
+  if (type === 'fisher') { const w = nbs(t).find(n => n.terrain === 'water'); if (w) model.rotation.y = Math.atan2(w.group.position.x - t.group.position.x, w.group.position.z - t.group.position.z); }
+  if (type !== 'hearth' && type !== 'flowerbed') model.add(makeBlob(type === 'lantern' ? 1.1 : 2.1, .3)); t.group.add(model); t.b = b; t.deco.visible = false; G.buildings.push(b); fitPick(t);
   if (t.sapModel) { t.group.remove(t.sapModel); t.sapModel = null; t.sap = 0; }
   if (!silent) {
     model.scale.setScalar(.01); tween(.9, k => model.scale.set(lerp(.01, 1, ease.elastic(k)), lerp(.01, 1, ease.elastic(Math.min(1, k * 1.15))), lerp(.01, 1, ease.elastic(k))), ease.lin);
@@ -283,9 +338,15 @@ function placeBuilding(type, t, silent) {
   }
   return b;
 }
+function applyLevel(b) { if (b.lv > 1 && !b.model.userData.pen) { const p = b.model.userData.pen = pennant([0xf4a95e, 0xd9694f, 0x5b8fb9, 0x7aa35a][b.tile.seed % 4]); p.position.set(.52, 0, -.46); p.scale.setScalar(.9); b.model.add(p); b.model.userData.h = Math.max(b.model.userData.h, 1); } }
+function upgrade(b) {
+  const c = UPCOST[DEF[b.type].up]; if (!c || b.lv > 1) return; if (!Object.entries(c).every(([k, v]) => G.res[k] >= v)) { sfx.error(); return; }
+  for (const [k, v] of Object.entries(c)) G.res[k] -= v; b.lv = 2; applyLevel(b); G.flags.up++;
+  const m = b.model; tween(.7, k => m.scale.setScalar(lerp(.8, 1, ease.elastic(k))), ease.lin); burst(tilePos(b.tile), 30, 2.8, 2.2, 1); b.tile.vy = -1.4; sfx.wish(); refresh(); checkWish();
+}
 function build(type, t) {
   for (const [k, v] of Object.entries(DEF[type].cost || {})) G.res[k] -= v;
-  if (type === 'plant') { setSapling(t, 4); sfx.plant(); t.vy = -1; puff(tilePos(t), 6); }
+  if (type === 'plant') { G.flags.planted++; setSapling(t, 4); sfx.plant(); t.vy = -1; puff(tilePos(t), 6); }
   else if (type === 'fell') {
     t.terrain = 'meadow'; G.res.wood += 3; rebuildTile(t); t.vy = -2; sfx.chop(); const p = tilePos(t); puff(p, 14);
     for (let i = 0; i < 14; i++) fxMix.spawn(p.x + (Math.random() - .5) * .8, p.y + .3 + Math.random() * .8, p.z + (Math.random() - .5) * .8, (Math.random() - .5) * 1.5, 1 + Math.random(), (Math.random() - .5) * 1.5, 1.6, .1, .45, .7, .35, .95, { grav: 3, kind: 2 });
@@ -308,7 +369,7 @@ function demolish(b) {
   G.buildings.splice(G.buildings.indexOf(b), 1); t.b = null;
   tween(.3, k => b.model.scale.setScalar(1 - k), ease.inOut).then(() => { t.group.remove(b.model); t.deco.visible = true; });
   fitPick(t); puff(tilePos(t), 12); sfx.demolish();
-  economy(); if (G.pop > E.cap.pop) { G.pop = E.cap.pop; toast('house', 'Sin su cabaña, dos vecinos se mudan a otro valle.'); }
+  economy(); if (G.pop > E.cap.pop) { G.pop = E.cap.pop; toast('house', 'Sin su cabaña, algunos vecinos se mudan a otro valle.'); }
   select(null); refresh();
 }
 
@@ -320,10 +381,12 @@ function checkWish() {
     for (const [k, v] of Object.entries(w.rw)) G.res[k] += v;
     for (const u of w.un) if (!G.unlocked.includes(u)) { G.unlocked.push(u); fresh.add(u); }
     const rw = Object.entries(w.rw).map(([k, v]) => `+${v} ${RES[k].toLowerCase()}`).join(', ');
-    toast('star', `<b>${w.t}</b> cumplido.${rw ? ' ' + rw + '.' : ''}${w.un.length ? ' Nuevo: ' + w.un.map(u => DEF[u].name).join(', ') + '.' : ''}`);
+    toast('star', `<b>${w.t}</b> cumplido.${rw ? ' ' + rw + '.' : ''}${w.un.length ? ' Nuevo: ' + w.un.filter(u => DEF[u]).map(u => DEF[u].name).join(', ') + '.' : ''}`);
+    if (w.un.includes('upgrade')) toast('up', 'Ahora puedes <b>mejorar</b> edificios: tócalos y elige Mejorar.');
     sfx.wish(); $('#wish').classList.add('flash'); setTimeout(() => $('#wish').classList.remove('flash'), 500);
     refresh();
   }
+  checkAch();
 }
 
 /* ------------------------------------------------------ paso del día */
@@ -352,9 +415,12 @@ async function endDay() {
   }
   if (burnt) { floatAt(hearthT, `−${burnt} ${ic('wood')}`, 'neg', .9); sfx.crackleBig(); }
   renderRes(); syncVisuals();
-  await wait(1.5);
+  const fest = G.day % 6 === 5 && E.charm >= 6;
+  if (fest) { festival(); await wait(4.2); } else await wait(1.5);
   // amanecer
   G.day++; const nS = season(), prevHib = G.hib;
+  for (const k in G.buff) if (G.buff[k] > 0) G.buff[k]--;
+  if (fest) { G.res.food = Math.min(E.cap.food, G.res.food + G.pop); G.hungry = 0; G.flags.festival++; ev.push(['heart', `<b>Fiesta de fin de ${SEASONS[S].name.toLowerCase()}</b>: baile, farolillos y un plato más por cabeza (+${G.pop} comida).`]); }
   if (nS < 2) { G.hearthLit = true; for (const b of braz) b.lit = true; }
   for (const t of tiles) if (t.sap) { t.sap--; if (t.sap <= 0) { t.group.remove(t.sapModel); t.sapModel = null; t.terrain = 'forest'; rebuildTile(t); t.vy = 1.5; ev.push(['tree', 'Una arboleda joven ya es bosque.']); } else tween(.8, k => t.sapModel.scale.setScalar(lerp(t.sapModel.scale.x, .35 + (4 - t.sap) * .2, k))); }
   economy();
@@ -362,17 +428,21 @@ async function endDay() {
   if (G.res.wood < 2 && !G.buildings.some(b => b.type === 'lumber' && b.active && b.y.total > 0)) { G.res.wood += 2; ev.push(['wood', 'El viento dejó ramas caídas junto al hogar: +2 leña.']); }
   economy();
   if (G.hib > prevHib) ev.push(['snow', `${G.hib} ${G.hib > 1 ? 'vecinos hibernan' : 'vecino hiberna'} en cabañas fuera del calor. Un brasero cerca los despertará.`]);
+  if (nS === 3 && G.hib + G.hungry > 0) G.flags.nap = true;
+  if (G.day % 24 === 0) { if (!G.flags.nap) G.flags.cleanWinter = true; G.flags.nap = false; }
+  merchantDawn(ev);
   refresh(); sfx.dawn(); applySeason(false);
   await tween(2.6, k => tod = lerp(.98, 1.31, k), ease.inOut); tod = .31; dayClock = 0;
   if (nS !== S) seasonCard(nS);
   ev.forEach(([i, m], k) => setTimeout(() => toast(i, m), k * 500));
-  checkWish(); save(); busy = false; $('#hud').classList.remove('busy');
+  checkWish(); rollEvent(); save(); busy = false; $('#hud').classList.remove('busy'); updateHover();
+  if (G.ev) setTimeout(showEvent, 900);
 }
 function finale() {
   G.won = true; save(); sfx.wish();
   modal(`<div class="eyebrow">Día ${G.day + 1} · año ${Math.floor(G.day / 24) + 1}</div><h2>El valle ya no teme al invierno</h2>
   <p>El Gran Farol está encendido. Desde ahora su luz calienta medio valle sin pedir leña, y las noches traerán aurora.</p>
-  <div class="stats"><div><b class="num">${G.day + 1}</b><span>días</span></div><div><b class="num">${G.pop}</b><span>habitantes</span></div><div><b class="num">${G.built}</b><span>construcciones</span></div></div>
+  <div class="stats"><div><b class="num">${G.day + 1}</b><span>días</span></div><div><b class="num">${G.pop}</b><span>habitantes</span></div><div><b class="num">${G.built}</b><span>construcciones</span></div><div><b class="num">${E.charm}</b><span>encanto</span></div></div>
   <p>No hay más metas que las que tú quieras. El valle sigue aquí, y sigue siendo tuyo.</p>
   <div class="btns"><button class="btn pri" data-x>Seguir cuidando el valle</button></div>`);
 }
@@ -381,23 +451,24 @@ function finale() {
 function save() {
   try {
     localStorage.setItem(SAVE, JSON.stringify({
-      v: 1, seed: G.seed, day: G.day, res: G.res, pop: G.pop, hungry: G.hungry, wish: G.wish, unlocked: G.unlocked, hearthLit: G.hearthLit, won: G.won, built: G.built,
+      v: 2, buff: G.buff, charmBonus: G.charmBonus, ach: G.ach, flags: G.flags, merchant: G.merchant, ev: G.ev, lastEv: G.lastEv, seed: G.seed, day: G.day, res: G.res, pop: G.pop, hungry: G.hungry, wish: G.wish, unlocked: G.unlocked, hearthLit: G.hearthLit, won: G.won, built: G.built,
       terr: tiles.map(t => t.terrain[0]).join(''), saps: tiles.filter(t => t.sap).map(t => [t.key, t.sap]),
-      b: G.buildings.filter(b => b.type !== 'hearth').map(b => [b.type, b.tile.key, b.paused ? 1 : 0, b.lit ? 1 : 0]),
+      b: G.buildings.filter(b => b.type !== 'hearth').map(b => [b.type, b.tile.key, b.paused ? 1 : 0, b.lit ? 1 : 0, b.lv]),
     }));
   } catch (e) { }
 }
-function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE)); return s && s.v === 1 ? s : null; } catch (e) { return null; } }
+function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE)); return s && s.v === 2 ? s : null; } catch (e) { return null; } }
 function newGame(sv) {
   clearWorld();
-  G = sv ? { seed: sv.seed, day: sv.day, res: sv.res, pop: sv.pop, hungry: sv.hungry, hib: 0, wish: sv.wish, unlocked: sv.unlocked, hearthLit: sv.hearthLit, won: sv.won, built: sv.built || 0, buildings: [] }
-    : { seed: (Math.random() * 1e9) | 0, day: 0, res: { food: 10, wood: 7, stone: 2 }, pop: 2, hungry: 0, hib: 0, wish: 0, unlocked: ['garden', 'lumber', 'fell'], hearthLit: true, won: false, built: 0, buildings: [] };
+  G = sv ? { seed: sv.seed, day: sv.day, res: sv.res, pop: sv.pop, hungry: sv.hungry, hib: 0, wish: sv.wish, unlocked: sv.unlocked, hearthLit: sv.hearthLit, won: sv.won, built: sv.built || 0, buildings: [], buff: sv.buff, charmBonus: sv.charmBonus, ach: sv.ach, flags: sv.flags, merchant: sv.merchant, ev: sv.ev, lastEv: sv.lastEv }
+    : { seed: (Math.random() * 1e9) | 0, day: 0, res: { food: 10, wood: 7, stone: 2 }, pop: 2, hungry: 0, hib: 0, wish: 0, unlocked: ['garden', 'lumber', 'fell'], hearthLit: true, won: false, built: 0, buildings: [], buff: { garden: 0, quarry: 0 }, charmBonus: 0, ach: [], flags: { traded: 0, festival: 0, up: 0, planted: 0, nap: false, cleanWinter: false }, merchant: null, ev: null, lastEv: 0 };
   const terr = genTerrain(G.seed), tk = { m: 'meadow', f: 'forest', r: 'rock', w: 'water' }; let i = 0;
-  for (const [k, v] of terr) { const t = makeTile(v.q, v.r, sv ? tk[sv.terr[i]] : v.terrain); tiles.push(t); tmap.set(k, t); i++; }
+  for (const [k, v] of terr) { const t = makeTile(v.q, v.r, sv ? tk[sv.terr[i]] : v.terrain, v.lv); tiles.push(t); tmap.set(k, t); i++; }
+  for (const t of tiles) if (t.terrain === 'water') capFor(t);
   placeBuilding('hearth', tmap.get('0,0'), true);
-  if (sv) { for (const [type, key, p, l] of sv.b) { const b = placeBuilding(type, tmap.get(key), true); b.paused = !!p; b.lit = !!l; } for (const [key, d] of sv.saps) setSapling(tmap.get(key), d); }
+  if (sv) { for (const [type, key, p, l, lv] of sv.b) { const b = placeBuilding(type, tmap.get(key), true); b.paused = !!p; b.lit = !!l; b.lv = lv || 1; applyLevel(b); } for (const [key, d] of sv.saps) setSapling(tmap.get(key), d); }
   tod = .31; dayClock = 0; tool = null; selected = null; hover = null; fresh.clear();
-  applySeason(true); refresh();
+  cat = 0; setupWaterfall(); setupMerchant(true); applySeason(true); refresh();
 }
 
 /* ------------------------------------------------- estaciones y cielo */
@@ -443,7 +514,7 @@ function updateSky(dt, time) {
   else { sun.position.copy(moonDir).multiplyScalar(36); sun.intensity = 1.25 * sstep(.04, .3, -e) * (1 - oc * .4); sun.color.set(0x9fb6ff); }
   skyMix(e, 'hs', hemi.color).lerp(_g, oc * .5); skyMix(e, 'hg', hemi.groundColor);
   hemi.intensity = lerp(.95, 1.05, dayF) + oc * .22 * dayF;
-  scene.fog.color.copy(skyU.uHor.value); scene.fog.density = lerp(.0055, .036, cur.fog) + cur.rain * .008 + cur.snowfall * .007;
+  scene.fog.color.copy(skyU.uHor.value); scene.fog.density = lerp(.004, .0155, cur.fog) + cur.rain * .004 + cur.snowfall * .0035;
   mFinal.uniforms.uExp.value = lerp(1.32, 1.08, dayF); mFinal.uniforms.uTint.value.lerp(vis.tint, 1 - Math.exp(-dt * .6));
   // estaciones: interpolación suave de materiales
   const a = 1 - Math.exp(-dt * .55);
@@ -451,6 +522,8 @@ function updateSky(dt, time) {
   U.uSnow.value = damp(U.uSnow.value, vis.snow, .5, dt); U.uIce.value = damp(U.uIce.value, vis.snow, .4, dt);
   U.uWind.value = 1 + cur.rain * 1.2 + cur.snowfall * .5 + Math.sin(time * .23) * .35;
   MAT.cloud.emissiveIntensity = lerp(.03, .12, dayF);
+  U.uCloud.value = dayF * (1 - oc) * (vis.snow ? .5 : 1); U.uSky.value.copy(skyU.uHor.value).lerp(skyU.uZen.value, .45); U.uRim.value.copy(hemi.color).multiplyScalar(.16 + .1 * night);
+  skyU.uCloudAmt.value = .55 + oc * .45; if (waterfall) waterfall.m.material.uniforms.uLight.value = lerp(.3, 1.05, dayF) * (1 - oc * .25);
   // luces cálidas
   const fl = .8 + .12 * Math.sin(time * 11.3) + .08 * Math.sin(time * 23.7 + 1.3);
   MAT.win.color.setRGB(lerp(.03, 2.9, night), lerp(.025, 1.6, night), lerp(.02, .55, night));
@@ -459,6 +532,8 @@ function updateSky(dt, time) {
   world.traverse(o => {
     const u = o.userData; if (u.glow) { const k = u.kind === 'win' ? night : u.kind === 'fire' ? (.07 + .93 * night) * (.85 + .15 * Math.sin(time * 9 + u.ph)) : .35 + .65 * night; o.material.opacity = u.on ? u.base * k : 0; o.visible = o.material.opacity > .01; }
     else if (u.isFlame) for (const m of o.children) { const f = m.userData, w = Math.sin(time * 9 + f.ph) * .12 + Math.sin(time * 17 + f.ph * 2) * .08; m.scale.set(f.r * (1 - w * .5), f.h * (1 + w), f.r * (1 - w * .5)); m.position.y = f.h * (1 + w) / 2; m.position.x = Math.sin(time * 6 + f.ph) * .012; m.rotation.y = time * 1.5 + f.ph; }
+    else if (u.sails) u.sails.rotation.z = -time * (.9 + cur.rain * .8) * (U.uWind.value * .6 + .4);
+    else if (u.flag !== undefined) { o.rotation.y = Math.sin(time * 3.1 + u.flag) * .45 + Math.sin(time * 5.3 + u.flag) * .15; }
     else if (u.crystal) { u.crystal.rotation.y = time * .8; u.crystal.position.y = 1.38 + Math.sin(time * 1.6) * .03; }
   });
   for (const c of clouds) { c.a += c.sp * dt; c.m.position.set(Math.cos(c.a) * c.rad, c.y + Math.sin(time * .1 + c.a * 3) * .2, Math.sin(c.a) * c.rad); }
@@ -481,10 +556,10 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 function updateAmbient(dt, time) {
   if (!G) return; const S = season(), N = cur.night, wet = cur.rain > .3 || cur.snowfall > .3;
   const disk = (R) => { const a = Math.random() * TAU, r = Math.sqrt(Math.random()) * R; return [Math.cos(a) * r, Math.sin(a) * r]; };
-  if (!wet) emit('mote', 7 * cur.day, dt, () => { const [x, z] = disk(8); fxAdd.spawn(x, rnd(.3, 4), z, rnd(-.1, .1), rnd(-.02, .06), rnd(-.1, .1), rnd(5, 9), rnd(.04, .08), 1, .85, .55, .5, { kind: 1, drag: .8 }); });
-  if (S < 3 && !wet) emit('fly', 7 * N, dt, () => { const [x, z] = disk(6.5); fxAdd.spawn(x, rnd(.25, 1.6), z, rnd(-.15, .15), 0, rnd(-.15, .15), rnd(4, 8), rnd(.07, .11), 1.5, 2.2, .5, 1, { kind: 1, drag: 1 }); });
-  emit('rain', 520 * cur.rain, dt, () => { const [x, z] = disk(9.5); const l = .22 + .78 * cur.day; fxMix.spawn(x + 1, 9, z, -1.4, -15, 0, .72, .55, .78 * l, .86 * l, l, .3, { shape: 1 }); });
-  emit('snow', 85 * cur.snowfall, dt, () => { const [x, z] = disk(9.5); const l = .35 + .65 * cur.day; fxMix.spawn(x, 8, z, rnd(-.2, .2), rnd(-1.4, -.8), rnd(-.2, .2), 7.5, rnd(.07, .13), l, l, l * 1.05, .9, { kind: 2 }); });
+  if (!wet) emit('mote', 9 * cur.day, dt, () => { const [x, z] = disk(10); fxAdd.spawn(x, rnd(.3, 4), z, rnd(-.1, .1), rnd(-.02, .06), rnd(-.1, .1), rnd(5, 9), rnd(.04, .08), 1, .85, .55, .5, { kind: 1, drag: .8 }); });
+  if (S < 3 && !wet) emit('fly', 10 * N, dt, () => { const [x, z] = disk(8.5); fxAdd.spawn(x, rnd(.25, 1.6), z, rnd(-.15, .15), 0, rnd(-.15, .15), rnd(4, 8), rnd(.07, .11), 1.5, 2.2, .5, 1, { kind: 1, drag: 1 }); });
+  emit('rain', 700 * cur.rain, dt, () => { const [x, z] = disk(12); fxMix.spawn(x + 1, 9, z, -1.4, -15, 0, .72, .55, .78, .86, 1, .3, { shape: 1 }); });
+  emit('snow', 120 * cur.snowfall, dt, () => { const [x, z] = disk(12); fxMix.spawn(x, 8, z, rnd(-.2, .2), rnd(-1.4, -.8), rnd(-.2, .2), 7.5, rnd(.07, .13), 1, 1, 1.05, .9, { kind: 2 }); });
   const forests = tiles.filter(t => t.terrain === 'forest');
   if (forests.length && (S === 2 || S === 0)) emit('leaf', S === 2 ? 4 : 2, dt, () => {
     const t = forests[Math.random() * forests.length | 0], p = tilePos(t, rnd(.5, 1)); const c = S === 2 ? [[.95, .5, .15], [.85, .3, .12], [.98, .75, .25]][Math.random() * 3 | 0] : [1, .72, .82];
@@ -498,10 +573,11 @@ function updateAmbient(dt, time) {
     } else if (b.type === 'brazier' && b.lit) emit('bz' + b.tile.key, 3, dt, () => fxAdd.spawn(p.x, p.y + .6, p.z, rnd(-.1, .1), rnd(.5, 1), rnd(-.1, .1), rnd(.8, 1.5), .05, 3, 1.3, .3, 1, { kind: 1 }));
     else if (b.type === 'cabin' && b.residents && !b.cold && (N > .3 || S >= 2)) { const s = b.model.userData.smoke; emit('cs' + b.tile.key, 1.6, dt, () => fxMix.spawn(p.x + s.x, p.y + s.y, p.z + s.z, rnd(.05, .18), rnd(.35, .5), rnd(-.04, .04), rnd(2.8, 4), .1, .86, .83, .8, .24, { grow: .2, drag: .2 })); }
     else if (b.type === 'hive' && S < 3 && !wet && cur.day > .5 && cur.fog < .5) emit('bee' + b.tile.key, 3.5, dt, () => fxMix.spawn(p.x + rnd(-.3, .3), p.y + rnd(.2, .5), p.z + rnd(-.3, .3), rnd(-.4, .4), rnd(-.1, .2), rnd(-.4, .4), rnd(1.5, 2.5), .05, 1, .78, .1, 1, { kind: 3, drag: 3 }));
-    else if (b.type === 'beacon') emit('bk', 1.2 + 2 * N, dt, () => { const [x, z] = disk(7); fxAdd.spawn(x, rnd(0, .5), z, rnd(-.05, .05), rnd(.25, .5), rnd(-.05, .05), rnd(8, 12), rnd(.1, .18), 3, 1.7, .55, .9 * (.25 + .75 * N), { kind: 1, drag: .3 }); });
+    else if (b.type === 'beacon') emit('bk', 1.2 + 2 * N, dt, () => { const [x, z] = disk(9); fxAdd.spawn(x, rnd(0, .5), z, rnd(-.05, .05), rnd(.25, .5), rnd(-.05, .05), rnd(8, 12), rnd(.1, .18), 3, 1.7, .55, .9 * (.25 + .75 * N), { kind: 1, drag: .3 }); });
   }
+  updateFauna(dt, time);
   fxAdd.update(dt, time); fxMix.update(dt, time);
-  const px = VH * .5 / Math.tan(camera.fov * Math.PI / 360); fxAdd.u.uPx.value = fxMix.u.uPx.value = px;
+  const px = VH * .5 / Math.tan(camera.fov * Math.PI / 360); fxAdd.u.uPx.value = fxMix.u.uPx.value = px; fxMix.u.uLight.value = lerp(.3, 1, cur.day) * (1 - cur.overcast * .2);
 }
 
 /* ----------------------------------------------------------- vecinos */
@@ -627,7 +703,7 @@ const labels = $('#labels'), hov = $('#hov');
 function floatAt(t, html, cls = '', up = .5) { const el = document.createElement('div'); el.className = 'fl ' + cls; el.innerHTML = `<div class="in">${html}</div>`; labels.appendChild(el); floats.push({ el, t, up, born: performance.now() }); }
 function toast(icon, html) { const el = document.createElement('div'); el.className = 'tst'; el.innerHTML = ic(icon) + `<span>${html}</span>`; const box = $('#toast'); box.appendChild(el); while (box.children.length > 4) box.firstChild.remove(); setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 400); }, 6500); }
 function seasonCard(s) { const el = $('#season'); el.querySelector('.eyebrow').textContent = `Año ${Math.floor(G.day / 24) + 1}`; el.querySelector('h1').textContent = SEASONS[s].name; el.querySelector('p').textContent = SEASONS[s].line; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); }
-function modal(html) { const m = $('#modal'); m.querySelector('.card').innerHTML = html; m.classList.remove('hidden'); m.querySelectorAll('[data-x]').forEach(b => b.onclick = () => m.classList.add('hidden')); return m; }
+function modal(html, lock) { const m = $('#modal'); m.querySelector('.card').innerHTML = html; m.classList.remove('hidden'); if (lock) m.dataset.lock = 1; else delete m.dataset.lock; m.querySelectorAll('[data-x]').forEach(b => b.onclick = () => m.classList.add('hidden')); return m; }
 function renderDate() {
   const s = season(), d = G.day % 6, w = weatherAt(G.day);
   $('#date').innerHTML = `<h2>${SEASONS[s].name}</h2>
@@ -644,19 +720,23 @@ function renderRes() {
     ['food', G.res.food, `<span class="cap num">/${E.cap.food}</span>${sg(nf)}`, `Comida\nProducción +${E.prod.food} · Cena −${E.eat}\nDespensa: ${E.cap.food}`],
     ['wood', G.res.wood, sg(nw), `Leña\nProducción +${E.prod.wood}${E.burn ? ` · Fuego −${E.burn} esta noche` : ' · El fuego no pide leña ahora'}`],
     ['stone', G.res.stone, sg(E.prod.stone), `Piedra\nProducción +${E.prod.stone}`],
+    ['charm', E.charm, E.charm >= 6 ? `<span class="d">fiesta</span>` : `<span class="cap num">/6</span>`, `Encanto\nJardines, farolillos, variedad de edificios y mejoras.\nCon 6 o más hay fiesta al final de cada estación: +1 comida por vecino y nadie se queda sin cenar.\nCon 12, el mercader mejora sus tratos.`],
     ['pop', G.pop, `<span class="cap num">/${E.cap.pop}</span>` + (lack ? `<span class="d neg">faltan ${lack}</span>` : asleep ? `<span class="d neg">${asleep} en reposo</span>` : idle ? `<span class="d">${idle} libre${idle > 1 ? 's' : ''}</span>` : `<span class="d zero">ocupados</span>`), `Habitantes\n${E.workers} con fuerzas · ${E.need} tareas que piden manos${G.hib ? `\n${G.hib} hibernando en cabañas frías` : ''}${G.hungry ? `\n${G.hungry} descansando sin cenar` : ''}\nLlega alguien cada día si hay sitio y comida de sobra.`],
   ];
   const box = $('#res'); if (!box.children.length) box.innerHTML = pills.map(p => `<div class="pill" id="p-${p[0]}"></div>`).join('');
   for (const [k, v, extra, tip] of pills) { const el = $('#p-' + k); el.innerHTML = `${ic(k)}<span class="v num">${v}</span>${extra}`; el.dataset.tip = tip; if (lastRes[k] !== undefined && lastRes[k] !== v) { el.classList.add('bump'); setTimeout(() => el.classList.remove('bump'), 260); } lastRes[k] = v; }
 }
 function renderBar() {
-  const bar = $('#bar'); let key = 0, html = '';
-  for (const t of BAR) {
-    if (!G.unlocked.includes(t)) continue; key++; const D = DEF[t];
+  const bar = $('#bar'), cats = CATS.map((c, i) => [c[0], c[1].filter(t => G.unlocked.includes(t)), i]).filter(c => c[1].length);
+  if (!cats.some(c => c[2] === cat)) cat = cats[0][2];
+  let html = `<div class="cats">${cats.map(c => `<button class="cat${c[2] === cat ? ' on' : ''}${c[2] !== cat && c[1].some(t => fresh.has(t)) ? ' dot' : ''}" data-c="${c[2]}">${c[0]}</button>`).join('')}</div><div class="tools">`;
+  visibleTools().forEach((t, i) => {
+    const D = DEF[t];
     const cost = Object.entries(D.cost || {}).map(([k, v]) => `<span class="${G.res[k] < v ? 'no' : ''}">${ic(k)}<i class="num" style="font-style:normal">${v}</i></span>`).join('') || (t === 'fell' ? `<span>+3${ic('wood')}</span>` : '');
-    html += `<button class="tool${tool === t ? ' sel' : ''}${afford(t) ? '' : ' poor'}${fresh.has(t) ? ' new' : ''}${t === 'plant' || (t === 'fell' && !G.unlocked.includes('plant')) ? ' sep' : ''}" data-t="${t}" aria-label="${D.name}"><span class="k">${key < 10 ? key : key === 10 ? 0 : ''}</span><svg class="i g" viewBox="0 0 24 24"><path d="${IC[D.icon]}"/></svg><span class="n">${D.name}</span><span class="c">${cost}</span></button>`;
-  }
-  bar.innerHTML = html; fresh.clear();
+    html += `<button class="tool${tool === t ? ' sel' : ''}${afford(t) ? '' : ' poor'}${fresh.has(t) ? ' new' : ''}" data-t="${t}" aria-label="${D.name}"><span class="k">${i + 1}</span><svg class="i g" viewBox="0 0 24 24"><path d="${IC[D.icon]}"/></svg><span class="n">${D.name}</span><span class="c">${cost}</span></button>`;
+  });
+  bar.innerHTML = html + '</div>'; for (const t of visibleTools()) fresh.delete(t);
+  bar.querySelectorAll('.cat').forEach(b => b.onclick = () => { cat = +b.dataset.c; if (tool) setTool(null); sfx.tick(); renderBar(); });
   bar.querySelectorAll('.tool').forEach(b => { b.onclick = () => { audio.init(); setTool(tool === b.dataset.t ? null : b.dataset.t); }; b.onmouseenter = () => showHint(b.dataset.t); b.onmouseleave = () => showHint(tool); });
 }
 function showHint(t) { const h = $('#hint'); if (!t) { h.classList.add('hidden'); return; } h.innerHTML = `<b>${DEF[t].name}</b>${DEF[t].desc}`; h.classList.remove('hidden'); }
@@ -665,7 +745,7 @@ function renderWish() {
   const steps = `<div class="steps">${WISHES.map((_, i) => `<i class="${i < G.wish ? 'on' : ''}"></i>`).join('')}</div>`;
   if (!w) { el.innerHTML = `<div class="eyebrow">Valle en calma</div><h3>Todo anhelo, cumplido</h3><p>Sigue cuidando el valle a tu ritmo. Las noches traen aurora.</p>${steps}`; return; }
   const rw = Object.entries(w.rw).map(([k, v]) => `+${v} ${ic(k)}`).join(' ');
-  el.innerHTML = `<div class="eyebrow">Anhelo ${G.wish + 1} de ${WISHES.length}</div><h3>${w.t}</h3><p>${w.d}</p>${steps}${rw || w.un.length ? `<div class="rw">${rw}${w.un.length ? ` · abre ${w.un.map(u => DEF[u].name).join(', ')}` : ''}</div>` : ''}`;
+  el.innerHTML = `<div class="eyebrow">Anhelo ${G.wish + 1} de ${WISHES.length}</div><h3>${w.t}</h3><p>${w.d}</p>${steps}${rw || w.un.length ? `<div class="rw">${rw}${w.un.length ? ` · abre ${w.un.map(u => DEF[u] ? DEF[u].name : 'Mejoras').join(', ')}` : ''}</div>` : ''}`;
 }
 function renderInfo() {
   const el = $('#info'), t = selected; if (!t) { el.classList.add('hidden'); return; }
@@ -674,17 +754,17 @@ function renderInfo() {
     const b = t.b, D = DEF[b.type]; let st = 'Activo', off = false;
     if (b.type === 'hearth') { st = G.hearthLit ? 'Encendido' : 'En brasas: falta leña'; off = !G.hearthLit; }
     else if (b.paused) { st = 'En pausa'; off = true; } else if (D.worker && !b.active) { st = 'Sin manos libres'; off = true; }
-    else if (b.type === 'cabin') { st = b.cold ? 'Fría: sus vecinos hibernan' : `${b.residents} de 2 vecinos${season() === 3 ? ' · al calor' : isWarm(t) ? ' · quedará al calor' : ' · fuera del calor'}`; off = b.cold; }
+    else if (b.type === 'cabin') { st = b.cold ? 'Fría: sus vecinos hibernan' : `${b.residents} de ${b.capN} vecinos${season() === 3 ? ' · al calor' : isWarm(t) ? ' · quedará al calor' : ' · fuera del calor'}`; off = b.cold; }
     else if (b.type === 'brazier') { st = b.lit ? 'Encendido' : 'Apagado: falta leña'; off = !b.lit; }
-    h += `<h3>${D.name}</h3><div class="st${off ? ' off' : ''}">${st}</div><p>${D.desc}</p>`;
+    h += `<h3>${D.name}${b.lv > 1 ? ' <small style="font-size:.7rem;color:var(--accent);letter-spacing:.1em">MEJORADO</small>' : ''}</h3><div class="st${off ? ' off' : ''}">${st}</div><p>${D.desc}</p>`;
     if (b.y) h += `<table>${b.y.parts.map(p => `<tr><td>${p[0]}</td><td class="num">${p[1] > 0 ? '+' : '−'}${Math.abs(p[1])}</td></tr>`).join('')}${b.y.note ? `<tr><td colspan="2">${b.y.note}</td></tr>` : ''}<tr class="tot"><td>${RES[b.y.res]} hoy</td><td class="num">+${b.active ? b.y.total : 0}</td></tr></table>`;
     if (b.type === 'hearth' && E.burn) h += `<table><tr class="tot"><td>Leña esta noche</td><td class="num">−${E.burn}</td></tr></table>`;
-    if (b.type !== 'hearth') { const rf = Object.entries(D.cost || {}).filter(([k]) => k !== 'food').map(([k, v]) => `+${Math.floor(v / 2)} ${RES[k].toLowerCase()}`).join(', '); h += `<div class="acts">${D.worker ? `<button data-a="pause">${b.paused ? 'Reanudar' : 'Pausar'}</button>` : ''}<button data-a="demo" title="Recuperas ${rf}">Desmontar</button></div>`; }
+    if (b.type !== 'hearth') { const rf = Object.entries(D.cost || {}).filter(([k]) => k !== 'food').map(([k, v]) => `+${Math.floor(v / 2)} ${RES[k].toLowerCase()}`).join(', '); const uc = UPCOST[D.up], canUp = uc && b.lv < 2 && G.unlocked.includes('upgrade'); h += `<div class="acts">${canUp ? `<button data-a="up" class="${Object.entries(uc).every(([k, v]) => G.res[k] >= v) ? 'go' : 'poor'}">Mejorar · ${Object.entries(uc).map(([k, v]) => v + ' ' + ic(k)).join(' ')}</button>` : ''}${D.worker ? `<button data-a="pause">${b.paused ? 'Reanudar' : 'Pausar'}</button>` : ''}<button data-a="demo" title="Recuperas ${rf}">Desmontar</button></div>${canUp ? `<p style="font-size:.76rem">${D.up === 2 ? 'Mejorada: cabe 1 vecino más.' : 'Mejorado: +1 al día.'} Y +1 de encanto.</p>` : ''}`; }
   } else if (t.sap) h += `<h3>Arboleda joven</h3><div class="st">Bosque en ${t.sap} día${t.sap > 1 ? 's' : ''}</div><p>Crece sola. Cuando madure, los leñadores vecinos sacarán +1 leña.</p>`;
-  else h += `<h3>${TERR[t.terrain].name}</h3><p>${TERR[t.terrain].desc}</p>${t.terrain === 'meadow' ? `<p>${isWarm(t) ? 'Dentro del calor del hogar.' : 'Fuera del calor: una cabaña aquí pasaría frío en invierno.'}</p>` : ''}`;
+  else h += `<h3>${t.lv && t.terrain === 'meadow' ? 'Colina' : TERR[t.terrain].name}</h3>${t.lv && t.terrain === 'meadow' ? '<p>Prado alto donde sopla el viento: un Molino aquí rinde +1.</p>' : ''}<p>${TERR[t.terrain].desc}</p>${t.terrain === 'meadow' ? `<p>${isWarm(t) ? 'Dentro del calor del hogar.' : 'Fuera del calor: una cabaña aquí pasaría frío en invierno.'}</p>` : ''}`;
   el.innerHTML = h; el.classList.remove('hidden');
   el.querySelector('.x').onclick = () => select(null);
-  el.querySelectorAll('[data-a]').forEach(bn => bn.onclick = () => { if (bn.dataset.a === 'pause') { t.b.paused = !t.b.paused; sfx.tick(); refresh(); } else demolish(t.b); });
+  el.querySelectorAll('[data-a]').forEach(bn => bn.onclick = () => { if (bn.dataset.a === 'pause') { t.b.paused = !t.b.paused; sfx.tick(); refresh(); } else if (bn.dataset.a === 'up') upgrade(t.b); else demolish(t.b); });
 }
 function renderBadges() {
   for (const b of G.buildings) {
@@ -696,7 +776,7 @@ function renderBadges() {
   }
   for (const [b, el] of badges) if (!G.buildings.includes(b)) { el.remove(); badges.delete(b); }
 }
-function refresh() { economy(); renderDate(); renderRes(); renderBar(); renderWish(); renderInfo(); renderBadges(); syncVisuals(); syncVillagers(); updateHover(); }
+function refresh() { economy(); renderDate(); renderRes(); renderBar(); renderWish(); renderInfo(); renderBadges(); renderChip(); syncVisuals(); syncVillagers(); updateHover(); }
 function setTool(t) { if (busy && t) return; tool = t; if (t) { select(null); sfx.select(); } showHint(t); document.querySelectorAll('.tool').forEach(b => b.classList.toggle('sel', b.dataset.t === t)); updateHover(); canvas.style.cursor = t ? 'crosshair' : ''; }
 function select(t) { selected = t; renderInfo(); }
 
@@ -718,8 +798,8 @@ function updateHover() {
   if (tool) {
     const c = canPlace(tool, t); t.lift = .1;
     if (c.ok) {
-      t.ovC.setRGB(1, .93, .7); t.ovA = .5;
-      for (const n of synergyTiles(tool, t)) { if (tool !== 'beacon') { n.ovC.setRGB(1, .78, .3); n.ovA = Math.max(n.ovA, .55); n.lift = .06; } }
+      t.ovC.setRGB(1, .93, .7); t.ovA = .3;
+      for (const n of synergyTiles(tool, t)) { if (tool !== 'beacon') { n.ovC.setRGB(1, .78, .3); n.ovA = Math.max(n.ovA, .4); n.lift = .06; } }
       const d = previewDelta(tool, t), D = DEF[tool], bits = [];
       for (const k of ['food', 'wood', 'stone']) if (d[k]) bits.push(`<em class="${d[k] < 0 ? 'neg' : ''}">${d[k] > 0 ? '+' : '−'}${Math.abs(d[k])} ${ic(k)}</em>`);
       let line = bits.length ? bits.join('') + '<i style="font-style:normal">al día</i>' : '';
@@ -729,6 +809,9 @@ function updateHover() {
       if (tool === 'granary') line = '+20 de despensa';
       if (tool === 'brazier') { const n = G.buildings.filter(b => b.type === 'cabin' && hdist(b.tile, t) <= 1).length; line = `Calienta 6 casillas${n ? ` · ${n} cabaña${n > 1 ? 's' : ''}` : ''}`; }
       if (tool === 'beacon') line = 'Calor eterno a 3 casillas';
+      const add = x => line = line ? line + ' · ' + x : x;
+      if (tool === 'flowerbed') add('+2 encanto'); if (tool === 'lantern') add(nbs(t).some(n => n.b && n.b.type === 'cabin') ? '+2 encanto' : '+1 encanto');
+      if (tool === 'well' && !bits.length) line = 'Sin huertos que regar aquí'; if (tool === 'mill' && t.lv) add('colina');
       if (!line && D.worker) line = 'No rinde nada aquí';
       if (D.worker && E.free <= 0) line += ' · <i class="warn" style="font-style:normal">sin manos libres</i>';
       hov.innerHTML = `<b>${D.name}</b><span>${line}</span>`;
@@ -742,8 +825,8 @@ function updateHover() {
   } else {
     if (t !== selected) { t.ovC.setRGB(1, 1, 1); t.ovA = .2; t.lift = .06; }
     let name, line = '';
-    if (t.b) { const b = t.b; name = DEF[b.type].name; if (b.y) line = b.paused ? 'En pausa' : !b.active ? '<i class="warn" style="font-style:normal">Sin manos libres</i>' : b.y.total ? `<em>+${b.y.total} ${ic(b.y.res)}</em> hoy` : (b.y.note || 'No rinde hoy'); else if (b.type === 'cabin') line = b.cold ? '<i class="warn" style="font-style:normal">Hibernando</i>' : `${b.residents}/2 vecinos`; }
-    else { name = t.sap ? 'Arboleda joven' : TERR[t.terrain].name; if (t.sap) line = `Bosque en ${t.sap} día${t.sap > 1 ? 's' : ''}`; }
+    if (t.b) { const b = t.b; name = DEF[b.type].name; if (b.y) line = b.paused ? 'En pausa' : !b.active ? '<i class="warn" style="font-style:normal">Sin manos libres</i>' : b.y.total ? `<em>+${b.y.total} ${ic(b.y.res)}</em> hoy` : (b.y.note || 'No rinde hoy'); else if (b.type === 'cabin') line = b.cold ? '<i class="warn" style="font-style:normal">Hibernando</i>' : `${b.residents}/${b.capN} vecinos`; }
+    else { name = t.sap ? 'Arboleda joven' : t.lv && t.terrain === 'meadow' ? 'Colina' : TERR[t.terrain].name; if (t.sap) line = `Bosque en ${t.sap} día${t.sap > 1 ? 's' : ''}`; }
     hov.innerHTML = `<b>${name}</b>${line ? `<span>${line}</span>` : ''}`; hov.classList.remove('hidden'); hov.dataset.up = t.b ? t.b.model.userData.h + .15 : t.topH + .3;
   }
 }
@@ -756,52 +839,55 @@ function clickTile(t) {
 }
 
 /* ------------------------------------------------------ cámara y entrada */
-const cam = { yaw: -1.1, pitch: .5, dist: 42, tx: 0, tz: 0, yawT: .62, pitchT: .66, distT: 25, txT: 0, tzT: 0 };
+const cam = { yaw: -1.1, pitch: .5, dist: 42, tx: 0, tz: 0, yawT: .62, pitchT: .7, distT: 35, txT: 0, tzT: 0 };
 let camKick = 0;
 const ray = new T.Raycaster(), ndc = new T.Vector2();
 const ptrs = new Map(); let dragging = false, downAt = null, pinch = 0, lastMove = null;
-function pickAt(x, y) { ndc.set(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera); const h = ray.intersectObjects(picks, false)[0]; return h ? h.object.userData.tile : null; }
+let overBalloon = false;
+function pickAt(x, y) { ndc.set(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera); const h = ray.intersectObjects(picks, false)[0]; overBalloon = !!(h && h.object.userData.balloon); if (!tool) canvas.style.cursor = overBalloon ? 'pointer' : ''; return h && !overBalloon ? h.object.userData.tile : null; }
 canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ptrs.size === 1) { downAt = { x: e.clientX, y: e.clientY, b: e.button }; dragging = false; if (e.pointerType !== 'mouse') setHover(started ? pickAt(e.clientX, e.clientY) : null); } else { dragging = true; const p = [...ptrs.values()]; pinch = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y); } });
 canvas.addEventListener('pointermove', e => {
   const p = ptrs.get(e.pointerId);
   if (!p) { if (started && !busy) lastMove = { x: e.clientX, y: e.clientY }; return; }
   const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
-  if (ptrs.size === 2) { const q = [...ptrs.values()], d = Math.hypot(q[0].x - q[1].x, q[0].y - q[1].y); cam.distT = clamp(cam.distT * pinch / d, 9, 34); pinch = d; return; }
+  if (ptrs.size === 2) { const q = [...ptrs.values()], d = Math.hypot(q[0].x - q[1].x, q[0].y - q[1].y); cam.distT = clamp(cam.distT * pinch / d, 9, 60); pinch = d; return; }
   if (!dragging && downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6) { dragging = true; setHover(null); }
   if (dragging) {
-    if (downAt.b === 2 || e.shiftKey) { const s = cam.dist * .0016, c = Math.cos(cam.yaw), sn = Math.sin(cam.yaw); cam.txT = clamp(cam.txT - (dx * c + dy * sn) * s, -6, 6); cam.tzT = clamp(cam.tzT - (-dx * sn + dy * c) * s, -6, 6); }
+    if (downAt.b === 2 || e.shiftKey) { const s = cam.dist * .0016, c = Math.cos(cam.yaw), sn = Math.sin(cam.yaw); cam.txT = clamp(cam.txT - (dx * c + dy * sn) * s, -7.5, 7.5); cam.tzT = clamp(cam.tzT - (-dx * sn + dy * c) * s, -7.5, 7.5); }
     else { cam.yawT -= dx * .006; cam.pitchT = clamp(cam.pitchT + dy * .004, .3, 1.3); }
   }
 });
-const up = e => { if (!ptrs.has(e.pointerId)) return; ptrs.delete(e.pointerId); if (ptrs.size === 0) { if (!dragging && downAt) { if (downAt.b === 0) { const t = pickAt(e.clientX, e.clientY); if (t) clickTile(t); else if (!tool) select(null); } else if (downAt.b === 2) { if (tool) setTool(null); else select(null); } } dragging = false; downAt = null; if (e.pointerType !== 'mouse') setHover(null); } };
+const up = e => { if (!ptrs.has(e.pointerId)) return; ptrs.delete(e.pointerId); if (ptrs.size === 0) { if (!dragging && downAt) { if (photo) { setPhoto(false); } else if (downAt.b === 0) { const t = pickAt(e.clientX, e.clientY); if (overBalloon && started && !busy) openMerchant(); else if (t) clickTile(t); else if (!tool) select(null); } else if (downAt.b === 2) { if (tool) setTool(null); else select(null); } } dragging = false; downAt = null; if (e.pointerType !== 'mouse') setHover(null); } };
 canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
 canvas.addEventListener('pointerleave', () => { lastMove = null; if (!ptrs.size) setHover(null); });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
-canvas.addEventListener('wheel', e => { e.preventDefault(); cam.distT = clamp(cam.distT * Math.exp(e.deltaY * .0011), 9, 34); }, { passive: false });
+canvas.addEventListener('wheel', e => { e.preventDefault(); cam.distT = clamp(cam.distT * Math.exp(e.deltaY * .0011), 9, 60); }, { passive: false });
 const keys = {};
 addEventListener('keydown', e => {
   if (e.repeat && !'wasdqe'.includes(e.key.toLowerCase()) && !e.key.startsWith('Arrow')) return; keys[e.key.toLowerCase()] = 1;
   if (!started) return; const m = $('#modal');
-  if (e.key === 'Escape') { if (!m.classList.contains('hidden')) m.classList.add('hidden'); else if (tool) setTool(null); else select(null); return; }
+  if (photo) { if (e.key === 'Escape' || e.key.toLowerCase() === 'p') setPhoto(false); return; }
+  if (e.key === 'Escape') { if (!m.classList.contains('hidden')) { if (!m.dataset.lock) m.classList.add('hidden'); } else if (tool) setTool(null); else select(null); return; }
   if (!m.classList.contains('hidden')) return;
-  if (/^[0-9]$/.test(e.key)) { const list = BAR.filter(t => G.unlocked.includes(t)), i = e.key === '0' ? 9 : +e.key - 1; if (list[i]) { audio.init(); setTool(tool === list[i] ? null : list[i]); } }
+  if (e.key === 'Tab') { e.preventDefault(); const cs = CATS.map((c, i) => i).filter(i => CATS[i][1].some(t => G.unlocked.includes(t))); cat = cs[(cs.indexOf(cat) + 1) % cs.length]; if (tool) setTool(null); renderBar(); return; }
+  if (/^[1-9]$/.test(e.key)) { const list = visibleTools(), i = +e.key - 1; if (list[i]) { audio.init(); setTool(tool === list[i] ? null : list[i]); } }
   else if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); endDay(); }
-  else if (e.key.toLowerCase() === 'm') audio.toggle(); else if (e.key.toLowerCase() === 'h') help();
+  else if (e.key.toLowerCase() === 'm') audio.toggle(); else if (e.key.toLowerCase() === 'h') help(); else if (e.key.toLowerCase() === 'j') journal(); else if (e.key.toLowerCase() === 'p') setPhoto(true);
 });
 addEventListener('keyup', e => keys[e.key.toLowerCase()] = 0);
 addEventListener('blur', () => { for (const k in keys) keys[k] = 0; });
 const _t = new T.Vector3();
 function updateCamera(dt) {
-  if (!started) cam.yawT += dt * .035;
+  if (!started || photo) cam.yawT += dt * (photo ? .06 : .035);
   const rot = (keys.q ? 1 : 0) - (keys.e ? 1 : 0); cam.yawT += rot * dt * 1.4;
   const fx = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0), fz = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0);
-  if (fx || fz) { const c = Math.cos(cam.yaw), s = Math.sin(cam.yaw), v = dt * 7; cam.txT = clamp(cam.txT + (fx * c + fz * s) * v, -6, 6); cam.tzT = clamp(cam.tzT + (-fx * s + fz * c) * v, -6, 6); }
+  if (fx || fz) { const c = Math.cos(cam.yaw), s = Math.sin(cam.yaw), v = dt * 7; cam.txT = clamp(cam.txT + (fx * c + fz * s) * v, -7.5, 7.5); cam.tzT = clamp(cam.tzT + (-fx * s + fz * c) * v, -7.5, 7.5); }
   const l = REDUCED ? 30 : started ? 6 : 1.2;
   cam.yaw = damp(cam.yaw, cam.yawT, l, dt); cam.pitch = damp(cam.pitch, cam.pitchT, l, dt); cam.dist = damp(cam.dist, cam.distT, started ? 5 : 1.1, dt); cam.tx = damp(cam.tx, cam.txT, 6, dt); cam.tz = damp(cam.tz, cam.tzT, 6, dt);
   camKick = damp(camKick, 0, 6, dt); const d = cam.dist - camKick, cp = Math.cos(cam.pitch);
   // en pantallas anchas el título ocupa la izquierda: desplaza el encuadre
   const shift = !started && innerWidth > 900 ? -4.2 : 0; cam.sh = damp(cam.sh || shift, shift, 1.5, dt);
-  _t.set(cam.tx + Math.cos(cam.yaw) * cam.sh, .35, cam.tz - Math.sin(cam.yaw) * cam.sh);
+  _t.set(cam.tx + Math.cos(cam.yaw) * cam.sh, -.6, cam.tz - Math.sin(cam.yaw) * cam.sh);
   camera.position.set(_t.x + Math.sin(cam.yaw) * cp * d, _t.y + Math.sin(cam.pitch) * d, _t.z + Math.cos(cam.yaw) * cp * d); camera.lookAt(_t);
   sun.target.position.set(0, 0, 0);
 }
@@ -815,9 +901,11 @@ function help() {
    <dt>${ic('pop')}Manos</dt><dd>Huertos, leñadores, canteras e invernaderos piden un vecino cada uno. Más cabañas, más manos… y más bocas.</dd>
    <dt>${ic('flame')}Calor</dt><dd>En invierno, las cabañas fuera del resplandor del hogar o de un brasero hibernan. El fuego pide leña en otoño e invierno.</dd>
    <dt>${ic('snow')}Estaciones</dt><dd>Seis días cada una. El pronóstico de arriba a la izquierda te avisa de lluvia, niebla y nevadas.</dd>
+   <dt>${ic('heart')}Encanto</dt><dd>Jardines, farolillos y mejoras embellecen el valle. Con 6 de encanto hay fiesta cada fin de estación.</dd>
+   <dt>${ic('balloon')}Mercader</dt><dd>Cada cinco días llega en globo y propone trueques. Tócalo o usa su aviso.</dd>
    <dt>${ic('zzz')}Sin castigo</dt><dd>Si falta comida o leña nadie se pierde: descansan y al día siguiente se vuelve a intentar.</dd>
   </dl>
-  <p><kbd>arrastrar</kbd> girar · <kbd>rueda</kbd> acercar · <kbd>clic derecho</kbd> desplazar o cancelar · <kbd>1</kbd>–<kbd>0</kbd> herramientas · <kbd>Espacio</kbd> terminar el día · <kbd>Q</kbd> <kbd>E</kbd> girar · <kbd>WASD</kbd> mover</p>
+  <p><kbd>arrastrar</kbd> girar · <kbd>rueda</kbd> acercar · <kbd>clic derecho</kbd> desplazar o cancelar · <kbd>1</kbd>–<kbd>9</kbd> herramientas · <kbd>Tab</kbd> categoría · <kbd>J</kbd> cuaderno · <kbd>P</kbd> modo foto · <kbd>Espacio</kbd> terminar el día · <kbd>Q</kbd> <kbd>E</kbd> girar · <kbd>WASD</kbd> mover</p>
   <div class="btns"><button class="btn pri" data-x>Entendido</button></div>`);
 }
 
@@ -826,12 +914,13 @@ function start(sv) {
   audio.init(); if (audio.ctx && audio.ctx.state === 'suspended') audio.ctx.resume();
   if (sv !== 'keep') newGame(sv);
   started = true; $('#title').classList.add('hidden'); $('#hud').classList.remove('hidden');
-  cam.yawT = Math.round(cam.yaw / TAU) * TAU + .62; cam.distT = innerWidth < 900 ? 30 : 25; cam.pitchT = .66;
+  cam.yawT = Math.round(cam.yaw / TAU) * TAU + .62; cam.distT = innerWidth < innerHeight ? 54 : 35; cam.pitchT = .7;
   if (!sv || sv === 'keep') { if (G.day === 0) { setTimeout(() => seasonCard(0), 600); setTimeout(() => toast('sprout', 'Empieza por el <b>Huerto</b>: pásalo sobre el mapa y busca la casilla que más rinda junto al agua.'), 2600); } }
   sfx.dawn();
 }
 function initUI() {
-  $('#b-snd').innerHTML = ic('sound'); $('#b-help').innerHTML = ic('help'); $('#b-menu').innerHTML = ic('seed');
+  $('#b-snd').innerHTML = ic('sound'); $('#b-help').innerHTML = ic('help'); $('#b-menu').innerHTML = ic('seed'); $('#b-book').innerHTML = ic('book'); $('#b-photo').innerHTML = ic('camera');
+  $('#b-book').onclick = journal; $('#b-photo').onclick = () => setPhoto(true);
   $('#b-snd').onclick = () => { audio.init(); audio.toggle(); }; $('#b-help').onclick = help;
   $('#b-menu').onclick = () => { const m = modal(`<div class="eyebrow">Otro valle</div><h2>¿Empezar de nuevo en una isla distinta?</h2><p>El valle actual se perderá. El nuevo tendrá otro relieve, otra charca y otros bosques.</p><div class="btns"><button class="btn sec" data-x>Me quedo aquí</button><button class="btn pri" id="m-new">Nuevo valle</button></div>`); m.querySelector('#m-new').onclick = () => { m.classList.add('hidden'); localStorage.removeItem(SAVE); newGame(null); cam.yaw -= 1.2; cam.dist = 34; seasonCard(0); sfx.dawn(); }; };
   $('#endday').innerHTML = `${ic('moon')}<span>Dejar caer la tarde<small>Espacio · sin prisa</small></span>`; $('#endday').onclick = () => { audio.init(); endDay(); };
@@ -850,7 +939,7 @@ function frame(now) {
   const raw = (now - last) / 1000; last = now; const dt = Math.min(.05, raw); time += dt; U.uTime.value = time;
   // calidad adaptativa: si el equipo no llega, baja resolución interna
   if (raw > .04 && time > 3) { if ((slow += raw) > 2.5 && quality > .55) { quality = Math.max(.55, quality - .2); slow = 0; resize(); } } else slow = Math.max(0, slow - dt * .5);
-  for (let i = tweens.length - 1; i >= 0; i--) { const w = tweens[i]; w.t += dt; const k = Math.min(1, w.t / w.dur); w.fn(w.e(k)); if (k >= 1) { tweens.splice(i, 1); w.res(); } }
+  for (let i = tweens.length - 1; i >= 0; i--) { const w = tweens[i]; w.t += dt * SPEED; const k = Math.min(1, w.t / w.dur); w.fn(w.e(k)); if (k >= 1) { tweens.splice(i, 1); w.res(); } }
   if (lastMove) { setHover(pickAt(lastMove.x, lastMove.y)); lastMove = null; }
   updateCamera(dt); updateSky(dt, time);
   for (const t of tiles) {
@@ -868,8 +957,3 @@ function frame(now) {
   if (hover && !hov.classList.contains('hidden')) place(hov, tilePos(hover, +hov.dataset.up || .5), -22);
   for (const [b, el] of badges) place(el, tilePos(b.tile, b.model.userData.h + .22));
 }
-addEventListener('resize', resize);
-document.addEventListener('visibilitychange', () => { last = performance.now(); if (audio.ctx) document.hidden ? audio.ctx.suspend() : audio.ctx.resume(); });
-resize(); buildBackdrop(); initUI();
-window.rescoldo = { get G() { return G; }, get E() { return E; }, tiles, endDay, build, canPlace, setTool, cam, set tod(v) { todLock = v; }, toast, seasonCard, get busy() { return busy; } };
-requestAnimationFrame(frame);

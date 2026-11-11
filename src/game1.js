@@ -25,7 +25,7 @@ const wait = s => tween(s, () => { }, ease.lin);
 
 /* ---------------------------------------------------------------- hex */
 const DIRS = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
-const RADIUS = 4;
+const RADIUS = 5;
 const hkey = (q, r) => q + ',' + r;
 const hdist = (a, b) => (Math.abs(a.q - b.q) + Math.abs(a.r - b.r) + Math.abs(a.q + a.r - b.q - b.r)) / 2;
 const hx = (q, r) => SQ3 * (q + r / 2), hz = (q, r) => 1.5 * r;
@@ -40,7 +40,7 @@ const scene = new T.Scene();
 scene.fog = new T.FogExp2(0xd4ecf7, 0.006);
 const camera = new T.PerspectiveCamera(30, 1, 0.5, 400);
 
-const U = { uTime: { value: 0 }, uSnow: { value: 0 }, uWind: { value: 1 }, uIce: { value: 0 } };
+const U = { uTime: { value: 0 }, uSnow: { value: 0 }, uWind: { value: 1 }, uIce: { value: 0 }, uCloud: { value: 0 }, uRim: { value: new T.Color(0, 0, 0) }, uSky: { value: new T.Color(.6, .8, 1) } };
 
 /* ------------------------------------------------- pipeline de postproceso
    escena HDR (MSAA) → desenfoque para tilt-shift → bloom → composición con
@@ -116,24 +116,34 @@ function enhance(mat, o = {}) {
   mat.onBeforeCompile = s => {
     Object.assign(s.uniforms, U);
     s.vertexShader = s.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;varying vec3 vWN;uniform float uTime;uniform float uWind;')
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;varying vec3 vWN;uniform float uTime;uniform float uWind;' + (o.water ? 'attribute float aShore;varying float vShore;' : ''))
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         vec4 wp0=modelMatrix*vec4(transformed,1.);
-        ${o.sway ? `float swk=max(position.y-${(o.base || 0).toFixed(2)},0.)*${o.sway.toFixed(3)}*uWind;
+        ${o.sway ? `float gust=.55+.6*sin(uTime*.7+wp0.x*.33+wp0.z*.21)*sin(uTime*.31-wp0.x*.11+wp0.z*.17);
+        float swk=max(position.y-${(o.base || 0).toFixed(2)},0.)*${o.sway.toFixed(3)}*uWind*(.45+gust);
         transformed.x+=sin(uTime*1.7+wp0.x*1.3+wp0.z*.9)*swk;
         transformed.z+=cos(uTime*1.3+wp0.x*.7-wp0.z*1.1)*swk*.7;` : ''}
+        ${o.water ? 'vShore=aShore;' : ''}
         vWPos=wp0.xyz;vWN=normalize(mat3(modelMatrix)*objectNormal);`);
     s.fragmentShader = s.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;varying vec3 vWN;uniform float uSnow;uniform float uTime;uniform float uIce;' + GLSL_NOISE)
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;varying vec3 vWN;uniform float uSnow;uniform float uTime;uniform float uIce;uniform float uCloud;uniform vec3 uRim;uniform vec3 uSky;' + (o.water ? 'varying float vShore;' : '') + GLSL_NOISE)
       .replace('#include <color_fragment>', `#include <color_fragment>
         ${o.noise ? `diffuseColor.rgb*=${(1 - o.noise / 2).toFixed(2)}+${o.noise.toFixed(2)}*vnoise(vWPos.xz*${(o.scale || 2.2).toFixed(1)});` : ''}
         ${o.water ? `float rp=vnoise(vWPos.xz*2.3+vec2(uTime*.16,uTime*.11));
         float rp2=vnoise(vWPos.xz*5.5-vec2(uTime*.2,uTime*.14));
-        diffuseColor.rgb=mix(diffuseColor.rgb*.72,diffuseColor.rgb*1.25,rp);
-        diffuseColor.rgb+=smoothstep(.70,.78,rp*.55+rp2*.55)*.22*(1.-uIce);
-        diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.80,.90,.97)*(.9+.12*rp2),uIce*.92);` : ''}
+        vec3 Vw=normalize(cameraPosition-vWPos);float fr=pow(1.-clamp(Vw.y,0.,1.),2.2);
+        vec3 wc=mix(diffuseColor.rgb*.62,diffuseColor.rgb*1.2,rp);
+        wc=mix(wc,uSky,fr*.7);
+        wc+=smoothstep(.70,.78,rp*.55+rp2*.55)*.25*(1.-uIce);
+        float foam=smoothstep(.74,.92,vShore+(rp2-.5)*.4+sin(vShore*16.-uTime*1.8)*.07)*(1.-uIce);
+        wc=mix(wc,vec3(1.),foam*.85);
+        diffuseColor.rgb=mix(wc,vec3(.80,.90,.97)*(.9+.12*rp2),uIce*.92);` : ''}
         ${o.snow !== 0 ? `float sn=uSnow*smoothstep(.3,.75,vWN.y+(vnoise(vWPos.xz*3.4)-.5)*.35)*${(o.snow || 1).toFixed(2)};
-        diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.92,.95,1.),sn);` : ''}`);
+        diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.92,.95,1.),sn);` : ''}
+        float csh=smoothstep(.5,.74,vnoise(vWPos.xz*.19+uTime*vec2(.045,.024)));
+        diffuseColor.rgb*=1.-csh*uCloud*.32;`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        ${o.rim !== 0 ? 'totalEmissiveRadiance+=uRim*pow(1.-clamp(dot(normalize(vWN),normalize(cameraPosition-vWPos)),0.,1.),3.)*diffuseColor.rgb;' : ''}`);
   };
   mat.customProgramCacheKey = () => JSON.stringify(o);
   return mat;
@@ -143,7 +153,10 @@ const MAT = {
   soil: std({ vertexColors: true, flatShading: true }, { snow: 0, noise: .2, scale: 3 }),
   grass: std({ color: 0x8fc46a, vertexColors: true }, { noise: .26, scale: 1.7 }),
   rockTop: std({ color: 0xa39c93, vertexColors: true, flatShading: true }, { noise: .2 }),
-  water: std({ color: 0x4fa6c4, roughness: .16, metalness: .1 }, { water: 1, snow: 0 }),
+  water: std({ color: 0x3f9fc4, roughness: .42, metalness: 0 }, { water: 1, snow: 0, rim: 0 }),
+  flag: std({ vertexColors: true, side: T.DoubleSide, roughness: .8 }, { snow: 0, rim: 0 }),
+  toy: std({ vertexColors: true, roughness: .7 }, { snow: 0 }),
+  bird: new T.MeshStandardMaterial({ color: 0xf6f1e8, side: T.DoubleSide, roughness: 1 }),
   tuft: std({ color: 0x7db85c, vertexColors: true }, { sway: .5, base: 0, snow: .8 }),
   leaf: std({ color: 0x8ccf6c, vertexColors: true, flatShading: true }, { sway: .05, base: .1, snow: .85 }),
   pine: std({ color: 0x4f8f5a, vertexColors: true, flatShading: true }, { sway: .035, base: .1, snow: .9 }),
@@ -199,8 +212,8 @@ function vary(hex, r, amt = .08) { const c = new T.Color(hex); const k = 1 + (r(
 const world = new T.Group(); scene.add(world);
 const hemi = new T.HemisphereLight(0xcfe4ff, 0x8a8266, 1); scene.add(hemi);
 const sun = new T.DirectionalLight(0xfff1dc, 3);
-sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
-Object.assign(sun.shadow.camera, { left: -10, right: 10, top: 10, bottom: -10, near: 1, far: 70 });
+sun.castShadow = true; sun.shadow.mapSize.set(3072, 3072);
+Object.assign(sun.shadow.camera, { left: -12.5, right: 12.5, top: 12.5, bottom: -12.5, near: 1, far: 80 });
 sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.035; sun.shadow.radius = 3;
 scene.add(sun, sun.target);
 const hearthLight = new T.PointLight(0xff9448, 0, 9, 1.4); hearthLight.position.set(0, .7, 0); world.add(hearthLight);
@@ -208,12 +221,12 @@ const hearthLight = new T.PointLight(0xff9448, 0, 9, 1.4); hearthLight.position.
 /* cielo: gradiente, disco solar/lunar, estrellas y aurora */
 const skyU = {
   uZen: { value: new T.Color() }, uHor: { value: new T.Color() }, uGnd: { value: new T.Color() }, uSunDir: { value: new T.Vector3(0, 1, 0) },
-  uMoonDir: { value: new T.Vector3(0, -1, 0) }, uSunCol: { value: new T.Color() }, uNight: { value: 0 }, uAurora: { value: 0 }, uTime: U.uTime,
+  uMoonDir: { value: new T.Vector3(0, -1, 0) }, uSunCol: { value: new T.Color() }, uNight: { value: 0 }, uAurora: { value: 0 }, uCloudAmt: { value: .6 }, uTime: U.uTime,
 };
 const sky = new T.Mesh(new T.SphereGeometry(300, 40, 20), new T.ShaderMaterial({
   side: T.BackSide, depthWrite: false, fog: false, uniforms: skyU,
   vertexShader: 'varying vec3 vD;void main(){vD=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-  fragmentShader: `varying vec3 vD;uniform vec3 uZen,uHor,uGnd,uSunDir,uMoonDir,uSunCol;uniform float uNight,uAurora,uTime;${GLSL_NOISE}
+  fragmentShader: `varying vec3 vD;uniform vec3 uZen,uHor,uGnd,uSunDir,uMoonDir,uSunCol;uniform float uNight,uAurora,uTime,uCloudAmt;${GLSL_NOISE}
   float h3(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
   void main(){vec3 d=normalize(vD);float h=d.y;
    vec3 c=mix(uHor,uZen,pow(smoothstep(0.,.9,max(h,0.)),.62));
@@ -225,6 +238,9 @@ const sky = new T.Mesh(new T.SphereGeometry(300, 40, 20), new T.ShaderMaterial({
    vec3 g=floor(d*160.);float s=h3(g);
    float tw=.6+.4*sin(uTime*2.+s*90.);
    c+=vec3(1.,.95,.85)*step(.9965,s)*tw*uNight*smoothstep(-.05,.25,h)*1.4;
+   c+=vec3(.3,.36,.6)*pow(vnoise(d.xy*5.+3.)*smoothstep(.55,0.,abs(d.z+d.x*.4)),2.)*uNight*.9*smoothstep(0.,.3,h);
+   if(h>.02){vec2 cp=d.xz/(h+.3)*1.5+uTime*vec2(.006,.003);float cl=smoothstep(.48,.8,vnoise(cp)*.6+vnoise(cp*2.3)*.3+vnoise(cp*5.)*.15)*smoothstep(.02,.3,h);
+    c=mix(c,mix(uHor,vec3(1.),.65)*(1.-uNight*.82)+uSunCol*.12,cl*uCloudAmt);}
    float band=vnoise(vec2(atan(d.z,d.x)*3.+uTime*.05,h*2.))*vnoise(vec2(atan(d.z,d.x)*9.-uTime*.08,uTime*.03));
    float au=smoothstep(.12,.5,band)*smoothstep(.05,.3,h)*smoothstep(.85,.4,h);
    c+=mix(vec3(.2,1.2,.6),vec3(.9,.4,1.1),smoothstep(.25,.65,h))*au*uAurora*1.3;
@@ -267,8 +283,10 @@ function treeParts(trunk, pine, leaf, r, x, y, z, s, forcePine) {
     for (let i = 0; i < 3; i++) { const rad = (.3 - i * .075) * s, hh = (.4 - i * .03) * s; pine.push([GEO.cone, tint, MX(x, yy + hh / 2, z, rad * 2, hh, rad * 2, r() * TAU)]); yy += hh * .58; }
     return y + 1.0 * s;
   }
-  cy(trunk, 0x80593f, x, y, z, .055 * s, .36 * s);
-  const tint = vary(0xffffff, r, .12);
+  const birch = r() < .28;
+  cy(trunk, birch ? 0xe9e4d8 : 0x80593f, x, y, z, (birch ? .04 : .055) * s, (birch ? .46 : .36) * s);
+  if (birch) { y += .1 * s; bx(trunk, 0x4a423c, x, y + .1 * s, z, .085 * s, .02 * s, .085 * s); bx(trunk, 0x4a423c, x, y + .22 * s, z, .085 * s, .015 * s, .085 * s); }
+  const tint = birch ? new T.Color(1.12, 1.12, .62) : vary(0xffffff, r, .12);
   sp(leaf, tint, x, y + .52 * s, z, .56 * s, .52 * s, .56 * s, GEO.ico, r() * TAU);
   sp(leaf, tint, x + .16 * s, y + .42 * s, z + .08 * s, .34 * s, .32 * s, .34 * s, GEO.ico, r() * TAU);
   sp(leaf, tint, x - .14 * s, y + .62 * s, z - .1 * s, .32 * s, .3 * s, .32 * s, GEO.ico, r() * TAU);
@@ -287,10 +305,10 @@ class PS {
     g.setAttribute('aColor', new T.BufferAttribute(this.col, 4).setUsage(T.DynamicDrawUsage));
     g.setAttribute('aSize', new T.BufferAttribute(this.outSize, 1).setUsage(T.DynamicDrawUsage));
     g.setAttribute('aShape', new T.BufferAttribute(this.shape, 1).setUsage(T.DynamicDrawUsage));
-    this.u = { uPx: { value: 500 } };
+    this.u = { uPx: { value: 500 }, uLight: { value: 1 } };
     this.mesh = new T.Points(g, new T.ShaderMaterial({
       uniforms: this.u, transparent: true, depthWrite: false, blending: additive ? T.AdditiveBlending : T.NormalBlending,
-      vertexShader: 'attribute vec4 aColor;attribute float aSize;attribute float aShape;varying vec4 vC;varying float vS;uniform float uPx;void main(){vC=aColor;vS=aShape;vec4 mv=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mv;gl_PointSize=aSize*uPx/max(-mv.z,.1);}',
+      vertexShader: 'attribute vec4 aColor;attribute float aSize;attribute float aShape;varying vec4 vC;varying float vS;uniform float uPx;uniform float uLight;void main(){vC=vec4(aColor.rgb*uLight,aColor.a);vS=aShape;vec4 mv=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mv;gl_PointSize=aSize*uPx/max(-mv.z,.1);}',
       fragmentShader: 'varying vec4 vC;varying float vS;void main(){vec2 p=gl_PointCoord*2.-1.;float a;if(vS>.5){a=smoothstep(.14,0.,abs(p.x+p.y*.08))*smoothstep(1.,.2,abs(p.y));}else{float d=dot(p,p);a=smoothstep(1.,0.,d);a*=a;}gl_FragColor=vec4(vC.rgb,vC.a*a);}',
     }));
     this.mesh.frustumCulled = false; this.mesh.renderOrder = 5; scene.add(this.mesh);
@@ -321,7 +339,7 @@ class PS {
     const at = this.mesh.geometry.attributes; at.position.needsUpdate = at.aColor.needsUpdate = at.aSize.needsUpdate = at.aShape.needsUpdate = true;
   }
 }
-const fxAdd = new PS(900, true), fxMix = new PS(1700, false);
+const fxAdd = new PS(1400, true), fxMix = new PS(2800, false);
 function burst(pos, n, r, g, b, spd = 1.4, size = .09) {
   for (let i = 0; i < n; i++) { const a = Math.random() * TAU, e = Math.random() * 1.2, s = spd * (.4 + Math.random() * .8); fxAdd.spawn(pos.x, pos.y + .15, pos.z, Math.cos(a) * Math.cos(e) * s, Math.sin(e) * s * 1.2, Math.sin(a) * Math.cos(e) * s, .6 + Math.random() * .7, size * (.6 + Math.random() * .8), r, g, b, 1, { grav: 1.6, drag: 1.2 }); }
 }
@@ -480,7 +498,8 @@ const MODELS = {
     for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; bx(p, C.dark, Math.cos(a) * .2, 1.2, Math.sin(a) * .2, .025, .36, .025); }
     cy(p, 0x5fa08f, 0, 1.56, 0, .32, .06, GEO.cyl); p.push([GEO.cone, 0x5fa08f, MX(0, 1.78, 0, .6, .36, .6)]); sp(p, 0xe2c377, 0, 1.99, 0, .07);
     for (let i = 0; i < 3; i++) bx(p, C.roof, Math.cos(i * 2.1) * .25, .4 + i * .22, Math.sin(i * 2.1) * .25, .02, .1, .08, -i * 2.1);
-    const cr = new T.Mesh(GEO.oct, MAT.beacon); cr.scale.set(.24, .34, .24); cr.position.y = 1.38;
+    const cr = new T.Mesh(GEO.oct, MAT.beacon); cr.scale.set(.3, .4, .3); cr.position.y = 1.38;
+    const beam = new T.Mesh(new T.CylinderGeometry(.9, .06, 16, 14, 1, true), new T.MeshBasicMaterial({ color: new T.Color().setRGB(1.6, 1.15, .55), transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false, side: T.DoubleSide, fog: false })); beam.position.y = 9.4; beam.userData = { glow: true, base: .13, kind: 'beacon', on: true, ph: 0 }; g.add(beam);
     const w = winMesh([[0, .7, .215, .08, .12, .02], [0, .95, .19, .07, .1, .02]]);
     const glow = makeGlow(9, 0xffc878, .65, 'beacon');
     g.add(mk(p, MAT.build), mk(s, MAT.rock), cr, w, glow); g.userData = { h: 2.0, crystal: cr, glowM: glow }; return g;
@@ -496,4 +515,106 @@ function villagerMesh(r) {
   cy(p, cloth, 0, 0, 0, .062, .15, GEO.taper); sp(p, 0xf2cba6, 0, .2, 0, .1);
   p.push([GEO.cone, r() < .5 ? C.straw : cloth, MX(0, .265, 0, .17, .08, .17)]);
   const m = mk(p, MAT.smooth); return m;
+}
+
+/* sombra de contacto falsa: ancla edificios y arboledas al suelo */
+function makeBlob(size, op = .34) {
+  const m = new T.Mesh(glowGeo, new T.MeshBasicMaterial({ map: glowTex, color: 0x1a120c, transparent: true, opacity: op, depthWrite: false }));
+  m.scale.setScalar(size); m.position.y = .025; m.renderOrder = 1; return m;
+}
+function pennant(col) {
+  const g = new T.Group(), p = []; bx(p, C.dark, 0, 0, 0, .025, 1.05, .025); sp(p, C.straw, 0, 1.07, 0, .05);
+  const fg = new T.BufferGeometry(); fg.setAttribute('position', new T.Float32BufferAttribute([0, 1.02, 0, 0, .82, 0, .34, .92, 0], 3));
+  const c = new T.Color(col); fg.setAttribute('color', new T.Float32BufferAttribute([c.r, c.g, c.b, c.r, c.g, c.b, c.r, c.g, c.b], 3)); fg.computeVertexNormals();
+  const f = new T.Mesh(fg, MAT.flag); f.userData.flag = Math.random() * 9; g.add(mk(p, MAT.build), f); return g;
+}
+Object.assign(MODELS, {
+  well(r) {
+    const g = new T.Group(), p = [], s = [];
+    cy(p, C.path, 0, 0, 0, .7, .03, GEO.cyl6, Math.PI / 6);
+    for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; bx(s, vary(C.stone, r, .1), Math.cos(a) * .26, .03, Math.sin(a) * .26, .21, .24, .13, -a + Math.PI / 2); }
+    cy(p, 0x2f7f9f, 0, .2, 0, .2, .02);
+    bx(p, C.dark, -.3, .03, 0, .05, .62, .05); bx(p, C.dark, .3, .03, 0, .05, .62, .05);
+    p.push([GEO.roof, C.roof, MX(0, .62, 0, .82, .22, .44)]);
+    p.push([GEO.cyl, C.wood, MX(0, .52, 0, .05, .6, .05, 0, 0, Math.PI / 2)]);
+    bx(p, C.dark, 0, .3, 0, .012, .22, .012); cy(p, C.wood, 0, .24, 0, .06, .09, GEO.bowl);
+    g.add(mk(p, MAT.build), mk(s, MAT.rock)); g.userData = { h: .85 }; return g;
+  },
+  fisher(r) {
+    const g = new T.Group(), p = [], q = [];
+    cy(p, C.path, 0, 0, -.1, .6, .03, GEO.cyl6, Math.PI / 6);
+    bx(p, C.wood, -.12, .03, -.25, .46, .3, .4); p.push([GEO.roof, 0x5f8fa8, MX(-.12, .33, -.25, .58, .26, .52)]);
+    bx(p, C.door, -.12, .03, -.045, .12, .2, .02);
+    bx(p, 0xb08a62, .12, .01, .64, .3, .05, 1.0); for (const z of [.3, .7, 1.1]) for (const x of [0, .24]) bx(p, C.dark, x, -.22, z, .04, .32, .04);
+    p.push([GEO.cyl, C.dark, MX(.2, .3, 1.02, .02, .62, .02, 0, .7, 0)]);
+    bx(p, C.dark, .34, .03, -.32, .03, .4, .03); bx(p, C.dark, .34, .03, 0, .03, .4, .03); bx(p, C.dark, .34, .4, -.16, .02, .02, .36);
+    for (let i = 0; i < 3; i++) sp(q, 0x9fc3d8, .34, .32, -.27 + i * .11, .04, .13, .07);
+    sp(q, 0xd9694f, .05, .1, .95, .1, .08, .1);
+    const w = winMesh([[-.26, .2, -.045, .09, .09, .02]]);
+    g.add(mk(p, MAT.build), mk(q, MAT.smooth), w); g.userData = { h: .65 }; return g;
+  },
+  mill(r) {
+    const g = new T.Group(), p = [], s = [], q = [];
+    cy(p, C.path, 0, 0, 0, .78, .03, GEO.cyl6, Math.PI / 6);
+    cy(s, C.stone, 0, .03, 0, .35, .16, GEO.cyl); cy(p, C.plaster, 0, .19, 0, .3, .74, GEO.taper);
+    p.push([GEO.cone, C.roof, MX(0, 1.09, 0, .52, .34, .52)]);
+    bx(p, C.door, 0, .19, .27, .12, .22, .05); bx(p, C.dark, 0, .9, .15, .05, .05, .32);
+    sp(q, 0xe9dcc0, .42, .1, .3, .16, .2, .15); sp(q, 0xdccdae, .5, .09, .16, .14, .17, .14);
+    const sails = new T.Group(), sl = [];
+    for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2, c = Math.cos(a), sn = Math.sin(a); sl.push([GEO.box, C.dark, MX(c * .32, sn * .32, 0, .66, .03, .02, 0, 0, a)]); sl.push([GEO.box, C.cream, MX(c * .38 - sn * .075, sn * .38 + c * .075, 0, .46, .12, .012, 0, 0, a)]); }
+    sails.add(mk(sl, MAT.toy)); sails.position.set(0, .925, .32);
+    const w = winMesh([[0, .6, .215, .07, .1, .02]]);
+    g.add(mk(p, MAT.build), mk(s, MAT.rock), mk(q, MAT.smooth), sails, w); g.userData = { h: 1.35, sails }; return g;
+  },
+  flowerbed(r) {
+    const g = new T.Group(), p = [], f = [], q = [];
+    cy(p, 0x7a5a44, 0, 0, 0, .76, .05, GEO.cyl6, Math.PI / 6); cy(p, C.path, 0, .03, 0, .24, .035, GEO.cyl);
+    const pal = [0xf28fb1, 0xffd166, 0xffffff, 0xb79cf0, 0xff9f6b, 0xe5533d];
+    for (let i = 0; i < 38; i++) { const a = r() * TAU, d = .32 + r() * .38, x = Math.cos(a) * d, z = Math.sin(a) * d; q.push([GEO.cone4, vary(C.green, r, .15), MX(x, .1, z, .05, .12, .05)]); sp(f, pal[(a / TAU * 6 | 0) % 6], x, .17 + r() * .05, z, .075 + r() * .03); }
+    for (let i = 0; i < 3; i++) { const a = i * 2.1 + .5; sp(q, vary(0x5f9f4f, r, .1), Math.cos(a) * .54, .12, Math.sin(a) * .54, .24, .2, .24); }
+    bx(p, C.wood, 0, .14, 0, .26, .03, .1); bx(p, C.dark, -.1, .05, 0, .03, .1, .08); bx(p, C.dark, .1, .05, 0, .03, .1, .08);
+    g.add(mk(p, MAT.build), mk(q, MAT.tuft, false), mk(f, MAT.flower, false)); g.userData = { h: .4 }; return g;
+  },
+  lantern(r) {
+    const g = new T.Group(), p = [], s = [];
+    cy(s, C.stone, 0, 0, 0, .14, .08, GEO.cyl6); bx(p, C.dark, 0, .08, 0, .05, .64, .05); bx(p, C.dark, .1, .68, 0, .26, .04, .04);
+    bx(p, C.iron, .2, .62, 0, .02, .06, .02); bx(p, C.iron, .2, .42, 0, .13, .03, .13); p.push([GEO.cone4, C.iron, MX(.2, .64, 0, .2, .07, .2, Math.PI / 4)]);
+    for (let i = 0; i < 4; i++) { const a = r() * TAU; sp(s, vary(C.stone, r, .1), Math.cos(a) * .32, .03, Math.sin(a) * .32, .1, .07, .1, GEO.dod); }
+    const w = winMesh([[.2, .525, 0, .1, .16, .1]]), glow = makeGlow(2.6, 0xffb060, .5, 'win'); glow.position.x = .2;
+    const inner = new T.Group(); inner.add(mk(p, MAT.build), mk(s, MAT.rock), w, glow); inner.rotation.y = r() * TAU; g.add(inner); g.userData = { h: .8 }; return g;
+  },
+});
+function balloonModel() {
+  const g = new T.Group(), sg = new T.SphereGeometry(1, 16, 10).toNonIndexed(); sg.scale(1, 1.18, 1);
+  const pos = sg.attributes.position, col = new Float32Array(pos.count * 3), cs = [new T.Color(0xf3e3c3), new T.Color(0xd9694f), new T.Color(0xf3e3c3), new T.Color(0x4f86b0)];
+  for (let i = 0; i < pos.count; i += 3) { const x = (pos.getX(i) + pos.getX(i + 1) + pos.getX(i + 2)) / 3, z = (pos.getZ(i) + pos.getZ(i + 1) + pos.getZ(i + 2)) / 3; const c = cs[Math.floor((Math.atan2(z, x) + Math.PI) / TAU * 8 + .001) % 4]; for (let j = 0; j < 3; j++) col.set([c.r, c.g, c.b], (i + j) * 3); }
+  sg.setAttribute('color', new T.BufferAttribute(col, 3));
+  const env = new T.Mesh(sg, MAT.toy); env.position.y = 2.25; env.castShadow = true;
+  const p = []; cy(p, 0xd9694f, 0, 1.0, 0, .34, .3, GEO.bowl); bx(p, 0xa87850, 0, 0, 0, .36, .26, .36); bx(p, C.dark, 0, .24, 0, .4, .04, .4);
+  for (const [x, z] of [[-.16, -.16], [.16, -.16], [-.16, .16], [.16, .16]]) bx(p, C.dark, x, .26, z, .015, .8, .015);
+  sp(p, 0xe9dcc0, .22, .12, 0, .12, .14, .1); sp(p, 0xe2b04a, -.22, .14, .05, .1);
+  const f = makeFlame(.4); f.position.y = .86;
+  g.add(env, mk(p, MAT.toy), f, pennant(0xf4a95e)); g.children[3].position.set(0, 3.2, 0); g.children[3].scale.setScalar(.6);
+  const pk = new T.Mesh(new T.SphereGeometry(1.45, 8, 6), new T.MeshBasicMaterial({ visible: false })); pk.position.y = 1.8; pk.userData.balloon = true; g.add(pk); g.userData.pick = pk;
+  return g;
+}
+function birdModel() {
+  const g = new T.Group(), body = new T.Mesh(GEO.oct, MAT.bird); body.scale.set(.07, .06, .24);
+  const wg = new T.BufferGeometry(); wg.setAttribute('position', new T.Float32BufferAttribute([0, 0, -.07, 0, 0, .08, .3, 0, .02], 3)); wg.computeVertexNormals();
+  const wl = new T.Mesh(wg, MAT.bird), wr = new T.Mesh(wg, MAT.bird); wr.scale.x = -1; g.add(body, wl, wr); g.userData = { wl, wr }; return g;
+}
+function makeWaterfall() {
+  const g = new T.PlaneGeometry(1.0, 7, 1, 16); g.translate(0, -3.5, 0);
+  const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const y = p.getY(i); p.setZ(i, y * y * .014); }
+  const m = new T.Mesh(g, new T.ShaderMaterial({
+    transparent: true, depthWrite: false, side: T.DoubleSide, uniforms: { uTime: U.uTime, uIce: U.uIce, uLight: { value: 1 } },
+    vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+    fragmentShader: `varying vec2 vUv;uniform float uTime,uIce,uLight;${GLSL_NOISE}
+    void main(){float v=vUv.y,t=uTime*(1.-uIce);
+     float n=vnoise(vec2(vUv.x*7.,v*5.+t*2.2))*.6+vnoise(vec2(vUv.x*19.,v*11.+t*3.6))*.4;
+     vec3 c=mix(vec3(.3,.62,.82),vec3(1.05),smoothstep(.42,.8,n));c=mix(c,vec3(.82,.92,.98),uIce*.75);
+     float a=smoothstep(0.,.4,v)*(.5+.5*n)*smoothstep(0.,.1,vUv.x)*smoothstep(1.,.9,vUv.x);
+     gl_FragColor=vec4(c*uLight,a*.92);}`,
+  }));
+  m.renderOrder = 2; return m;
 }
