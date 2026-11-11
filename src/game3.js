@@ -129,7 +129,7 @@ const flocks = [], ripples = []; let fish = null, fishT = 4, fishAnim = null;
 function setupFauna() {
   const r = mulberry(4242);
   for (let f = 0; f < 3; f++) {
-    const fl = { a: r() * TAU, rad: 6.5 + r() * 5, y: 3.2 + r() * 2.8, sp: (.16 + r() * .1) * (f % 2 ? -1 : 1), birds: [], vis: 0 };
+    const fl = { a: r() * TAU, rad: 8 + r() * 6, y: 2.6 + r() * 2.4, sp: (.16 + r() * .1) * (f % 2 ? -1 : 1), birds: [], vis: 0 };
     for (let i = 0, n = 3 + (r() * 3 | 0); i < n; i++) { const m = birdModel(); m.userData.off = [-(Math.ceil(i / 2)) * .55, (r() - .5) * .3, (i % 2 ? 1 : -1) * Math.ceil(i / 2) * .5]; m.userData.ph = r() * 9; scene.add(m); fl.birds.push(m); }
     flocks.push(fl);
   }
@@ -145,7 +145,7 @@ function updateFauna(dt, time) {
     f.a += f.sp * dt; f.vis = damp(f.vis, cur.day > .5 && dry && cur.fog < .5 ? 1 : 0, .8, dt);
     const cx = Math.cos(f.a) * f.rad, cz = Math.sin(f.a) * f.rad, hd = Math.atan2(-Math.sin(f.a) * f.sp, Math.cos(f.a) * f.sp), c = Math.cos(hd), s = Math.sin(hd);
     for (const b of f.birds) {
-      const o = b.userData.off, u = b.userData; b.visible = f.vis > .02; if (!b.visible) continue;
+      const o = b.userData.off, u = b.userData; b.visible = f.vis > .02 && b.position.distanceTo(camera.position) > 9; if (f.vis <= .02) continue;
       b.position.set(cx + o[0] * s + o[2] * c, f.y + o[1] + Math.sin(time * .7 + u.ph) * .25 + (1 - f.vis) * 9, cz + o[0] * c - o[2] * s);
       b.rotation.y = hd; const w = Math.sin(time * 9 + u.ph) * .75; u.wl.rotation.z = w; u.wr.rotation.z = -w; b.scale.setScalar(f.vis);
     }
@@ -190,6 +190,6 @@ function setPhoto(v) {
 /* --------------------------------------------------------- arranque */
 addEventListener('resize', () => { resize(); if (G) renderChip(); });
 document.addEventListener('visibilitychange', () => { last = performance.now(); if (audio.ctx) document.hidden ? audio.ctx.suspend() : audio.ctx.resume(); });
-resize(); buildBackdrop(); setupFauna(); initUI();
+resize(); buildBackdrop(); setupFar(); setupFauna(); initUI();
 window.rescoldo = { camera, get G() { return G; }, get E() { return E; }, tiles, endDay, build, upgrade, canPlace, setTool, cam, toast, seasonCard, festival, openMerchant, showEvent, journal, set tod(v) { todLock = v; }, set speed(v) { SPEED = v; }, get busy() { return busy; } };
 requestAnimationFrame(frame);

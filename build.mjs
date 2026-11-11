@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 const threePath = process.argv[2] || 'node_modules/three/build/three.min.js';
 const three = readFileSync(threePath, 'utf8');
-const game = ['src/game1.js', 'src/game2.js', 'src/game3.js'].map(f => readFileSync(f, 'utf8')).join('\n');
+const game = ['src/game1.js', 'src/game2.js', 'src/game2b.js', 'src/game3.js'].map(f => readFileSync(f, 'utf8')).join('\n');
 for (const [name, src] of [['three', three], ['game', game]])
   if (/<\/script/i.test(src)) throw new Error(`${name} contiene </script`);
 

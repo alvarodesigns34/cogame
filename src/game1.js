@@ -38,9 +38,9 @@ renderer.shadowMap.type = T.PCFSoftShadowMap;
 renderer.toneMapping = T.NoToneMapping;
 const scene = new T.Scene();
 scene.fog = new T.FogExp2(0xd4ecf7, 0.006);
-const camera = new T.PerspectiveCamera(30, 1, 0.5, 400);
+const camera = new T.PerspectiveCamera(30, 1, 1.5, 500);
 
-const U = { uTime: { value: 0 }, uSnow: { value: 0 }, uWind: { value: 1 }, uIce: { value: 0 }, uCloud: { value: 0 }, uRim: { value: new T.Color(0, 0, 0) }, uSky: { value: new T.Color(.6, .8, 1) } };
+const U = { uTime: { value: 0 }, uSnow: { value: 0 }, uWind: { value: 1 }, uIce: { value: 0 }, uCloud: { value: 0 }, uWet: { value: 0 }, uRim: { value: new T.Color(0, 0, 0) }, uSky: { value: new T.Color(.6, .8, 1) } };
 
 /* ------------------------------------------------- pipeline de postproceso
    escena HDR (MSAA) → desenfoque para tilt-shift → bloom → composición con
@@ -53,11 +53,16 @@ const fsScene = new T.Scene(); fsScene.add(fsMesh);
 const fsCam = new T.Camera();
 const smat = (fs, uniforms) => new T.ShaderMaterial({ vertexShader: VS, fragmentShader: fs, uniforms, depthTest: false, depthWrite: false });
 const rtOpt = { type: T.HalfFloatType, depthBuffer: false, minFilter: T.LinearFilter, magFilter: T.LinearFilter };
+const depthTex = new T.DepthTexture(4, 4); depthTex.minFilter = depthTex.magFilter = T.NearestFilter;
 const RT = {
-  scene: new T.WebGLRenderTarget(4, 4, { type: T.HalfFloatType, samples: 4 }),
+  scene: new T.WebGLRenderTarget(4, 4, { type: T.HalfFloatType, depthTexture: depthTex }),
+  ao: new T.WebGLRenderTarget(4, 4, rtOpt), ao2: new T.WebGLRenderTarget(4, 4, rtOpt),
   h1: new T.WebGLRenderTarget(4, 4, rtOpt), h2: new T.WebGLRenderTarget(4, 4, rtOpt),
   q1: new T.WebGLRenderTarget(4, 4, rtOpt), q2: new T.WebGLRenderTarget(4, 4, rtOpt),
+  e1: new T.WebGLRenderTarget(4, 4, rtOpt), e2: new T.WebGLRenderTarget(4, 4, rtOpt),
+  ldr: new T.WebGLRenderTarget(4, 4, { depthBuffer: false, minFilter: T.LinearFilter, magFilter: T.LinearFilter }),
 };
+const post = { sun: new T.Vector2(.5, 1.2) }; let camFocus = 35;
 const mCopy = smat('uniform sampler2D t;varying vec2 vUv;void main(){gl_FragColor=texture2D(t,vUv);}', { t: { value: null } });
 const mBright = smat('uniform sampler2D t;varying vec2 vUv;void main(){vec3 c=texture2D(t,vUv).rgb;float l=max(c.r,max(c.g,c.b));gl_FragColor=vec4(c*smoothstep(.95,1.7,l),1.);}', { t: { value: null } });
 const mBlur = smat(`uniform sampler2D t;uniform vec2 d;varying vec2 vUv;
@@ -65,45 +70,87 @@ void main(){vec3 c=texture2D(t,vUv).rgb*.227027;
 c+=(texture2D(t,vUv+d*1.3846)+texture2D(t,vUv-d*1.3846)).rgb*.316216;
 c+=(texture2D(t,vUv+d*3.2308)+texture2D(t,vUv-d*3.2308)).rgb*.070270;
 gl_FragColor=vec4(c,1.);}`, { t: { value: null }, d: { value: new T.Vector2() } });
-const mFinal = smat(`uniform sampler2D tScene,tBlur,tBloom;uniform float uExp,uBloom,uTilt,uTime,uFade,uVig,uSat;uniform vec3 uTint;varying vec2 vUv;
-vec3 aces(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}
+/* oclusión ambiental en espacio de pantalla a partir de la profundidad */
+const mAO = smat(`uniform sampler2D tDepth;uniform mat4 uProj,uInv;uniform vec2 uRes;uniform float uRad;varying vec2 vUv;
+vec3 vp(vec2 uv){float d=texture2D(tDepth,uv).x;vec4 p=uInv*vec4(uv*2.-1.,d*2.-1.,1.);return p.xyz/p.w;}
 float h(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
+void main(){vec3 p=vp(vUv);if(-p.z>240.){gl_FragColor=vec4(1.);return;}
+ vec3 n=normalize(cross(dFdx(p),dFdy(p)));if(n.z<0.)n=-n;
+ float rn=h(vUv*uRes)*6.2832,occ=0.;
+ for(int i=0;i<11;i++){float fi=float(i);float a=rn+fi*2.399,b=fi*1.713+rn*.5;
+  vec3 sv=vec3(cos(a)*sin(b),sin(a)*sin(b),cos(b));if(dot(sv,n)<0.)sv=-sv;
+  vec3 s=p+n*.03+sv*uRad*(.25+.75*fract(fi*.618+rn));
+  vec4 q=uProj*vec4(s,1.);vec2 suv=q.xy/q.w*.5+.5;float sz=vp(suv).z;
+  occ+=step(s.z+.04,sz)*smoothstep(0.,1.,uRad*1.6/max(abs(p.z-sz),.0001));}
+ gl_FragColor=vec4(vec3(1.-occ/11.),1.);}`, { tDepth: { value: depthTex }, uProj: { value: new T.Matrix4() }, uInv: { value: new T.Matrix4() }, uRes: { value: new T.Vector2() }, uRad: { value: .55 } });
+/* rayos de sol: desenfoque radial del cielo visible hacia la posición del sol */
+const mRays = smat(`uniform sampler2D tDepth;uniform vec2 uSun;varying vec2 vUv;
+void main(){vec2 dl=(uSun-vUv)/30.;vec2 uv=vUv;float a=0.,w=1.;
+ for(int i=0;i<30;i++){uv+=dl;vec2 c=clamp(uv,0.,1.);a+=step(.99999,texture2D(tDepth,c).x)*smoothstep(1.1,.1,distance(uv,uSun))*w;w*=.955;}
+ gl_FragColor=vec4(vec3(a/14.),1.);}`, { tDepth: { value: depthTex }, uSun: { value: post.sun } });
+const mFinal = smat(`uniform sampler2D tScene,tBlur,tBloom,tBloom2,tAO,tRays,tDepth;uniform float uExp,uBloom,uTilt,uVig,uSat,uFocus,uRange,uNear,uFar,uAO,uRays;uniform vec3 uTint,uRayCol;varying vec2 vUv;
+vec3 aces(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}
+float lin(float d){float z=d*2.-1.;return 2.*uNear*uFar/(uFar+uNear-z*(uFar-uNear));}
 void main(){
- vec3 c=texture2D(tScene,vUv).rgb;vec3 b=texture2D(tBlur,vUv).rgb;
- float ts=smoothstep(.17,.5,abs(vUv.y-.5))*uTilt;c=mix(c,b,ts);
- c+=texture2D(tBloom,vUv).rgb*uBloom;
+ vec2 q=vUv-.5;float r2=dot(q,q);vec2 ca=q*r2*.011;
+ vec3 c=vec3(texture2D(tScene,vUv+ca).r,texture2D(tScene,vUv).g,texture2D(tScene,vUv-ca).b);
+ float dz=texture2D(tDepth,vUv).x;float sky=step(.99999,dz);
+ c*=mix(1.,texture2D(tAO,vUv).r,uAO*(1.-sky));
+ float coc=smoothstep(.12,1.,abs(lin(dz)-uFocus)/uRange);
+ coc=max(coc,smoothstep(.2,.52,abs(vUv.y-.5))*uTilt*.5);coc=mix(coc,.5,sky);
+ c=mix(c,texture2D(tBlur,vUv).rgb,coc);
+ c+=(texture2D(tBloom,vUv).rgb+texture2D(tBloom2,vUv).rgb*.8)*uBloom;
+ c+=uRayCol*texture2D(tRays,vUv).r*uRays;
  c=aces(c*uExp*uTint);
  c=pow(c,vec3(1./2.2));
  float l=dot(c,vec3(.299,.587,.114));c=mix(vec3(l),c,uSat);
- c=mix(c,c*c*(3.-2.*c),.18);
- vec2 q=vUv-.5;c*=1.-dot(q,q)*uVig;
- c+=(h(vUv*871.+uTime)-.5)*.012;
- gl_FragColor=vec4(c*uFade,1.);}`, {
-  tScene: { value: null }, tBlur: { value: null }, tBloom: { value: null },
-  uExp: { value: 1.1 }, uBloom: { value: .8 }, uTilt: { value: .85 }, uTime: U.uTime, uFade: { value: 0 },
-  uVig: { value: .7 }, uSat: { value: 1.1 }, uTint: { value: new T.Color(1, 1, 1) },
+ c=mix(c,c*c*(3.-2.*c),.2);
+ c*=1.-r2*uVig;
+ gl_FragColor=vec4(c,1.);}`, {
+  tScene: { value: null }, tBlur: { value: null }, tBloom: { value: null }, tBloom2: { value: null }, tAO: { value: null }, tRays: { value: null }, tDepth: { value: depthTex },
+  uExp: { value: 1.1 }, uBloom: { value: .7 }, uTilt: { value: .85 }, uFade: { value: 0 }, uVig: { value: .7 }, uSat: { value: 1.12 }, uTint: { value: new T.Color(1, 1, 1) },
+  uFocus: { value: 35 }, uRange: { value: 30 }, uNear: { value: 1.5 }, uFar: { value: 500 }, uAO: { value: .85 }, uRays: { value: 0 }, uRayCol: { value: new T.Color(1, .9, .7) },
 });
+/* suavizado FXAA sobre la imagen final + grano y fundido */
+const mFXAA = smat(`uniform sampler2D t;uniform vec2 px;uniform float uTime,uFade;varying vec2 vUv;
+float h(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
+void main(){vec3 L=vec3(.299,.587,.114);
+ vec3 nw=texture2D(t,vUv+vec2(-1.,-1.)*px).rgb,ne=texture2D(t,vUv+vec2(1.,-1.)*px).rgb,sw=texture2D(t,vUv+vec2(-1.,1.)*px).rgb,se=texture2D(t,vUv+vec2(1.,1.)*px).rgb,m=texture2D(t,vUv).rgb;
+ float lnw=dot(nw,L),lne=dot(ne,L),lsw=dot(sw,L),lse=dot(se,L),lm=dot(m,L);
+ float mn=min(lm,min(min(lnw,lne),min(lsw,lse))),mx=max(lm,max(max(lnw,lne),max(lsw,lse)));
+ vec2 dir=vec2(-((lnw+lne)-(lsw+lse)),((lnw+lsw)-(lne+lse)));
+ float red=max((lnw+lne+lsw+lse)*.03125,.0078125);
+ dir=clamp(dir/(min(abs(dir.x),abs(dir.y))+red),-8.,8.)*px;
+ vec3 A=.5*(texture2D(t,vUv+dir*(1./3.-.5)).rgb+texture2D(t,vUv+dir*(2./3.-.5)).rgb);
+ vec3 B=A*.5+.25*(texture2D(t,vUv-dir*.5).rgb+texture2D(t,vUv+dir*.5).rgb);
+ float lb=dot(B,L);vec3 c=(lb<mn||lb>mx)?A:B;
+ c+=(h(vUv*871.+uTime)-.5)*.014;
+ gl_FragColor=vec4(c*uFade,1.);}`, { t: { value: null }, px: { value: new T.Vector2() }, uTime: U.uTime, uFade: mFinal.uniforms.uFade });
 function pass(mat, target) { fsMesh.material = mat; renderer.setRenderTarget(target); renderer.render(fsScene, fsCam); }
+function blur2(a, b, w, h, s) { mBlur.uniforms.t.value = a.texture; mBlur.uniforms.d.value.set(s / w, 0); pass(mBlur, b); mBlur.uniforms.t.value = b.texture; mBlur.uniforms.d.value.set(0, s / h); pass(mBlur, a); }
 let quality = 1, VW = 1, VH = 1;
 function resize() {
   const w = innerWidth, h = innerHeight, pr = Math.min(devicePixelRatio || 1, 2) * quality;
   renderer.setPixelRatio(pr); renderer.setSize(w, h, false);
-  VW = Math.max(2, Math.floor(w * pr)); VH = Math.max(2, Math.floor(h * pr));
-  RT.scene.setSize(VW, VH);
-  RT.h1.setSize(VW >> 1, VH >> 1); RT.h2.setSize(VW >> 1, VH >> 1);
-  RT.q1.setSize(VW >> 2, VH >> 2); RT.q2.setSize(VW >> 2, VH >> 2);
+  VW = Math.max(8, Math.floor(w * pr)); VH = Math.max(8, Math.floor(h * pr));
+  RT.scene.setSize(VW, VH); RT.ldr.setSize(VW, VH);
+  for (const k of ['ao', 'ao2', 'h1', 'h2']) RT[k].setSize(VW >> 1, VH >> 1);
+  RT.q1.setSize(VW >> 2, VH >> 2); RT.q2.setSize(VW >> 2, VH >> 2); RT.e1.setSize(VW >> 3, VH >> 3); RT.e2.setSize(VW >> 3, VH >> 3);
   camera.aspect = w / h; camera.updateProjectionMatrix();
 }
 function renderFrame() {
   renderer.setRenderTarget(RT.scene); renderer.render(scene, camera);
-  mCopy.uniforms.t.value = RT.scene.texture; pass(mCopy, RT.h1);
-  mBlur.uniforms.t.value = RT.h1.texture; mBlur.uniforms.d.value.set(1.4 / (VW >> 1), 0); pass(mBlur, RT.h2);
-  mBlur.uniforms.t.value = RT.h2.texture; mBlur.uniforms.d.value.set(0, 1.4 / (VH >> 1)); pass(mBlur, RT.h1);
-  mBright.uniforms.t.value = RT.h1.texture; pass(mBright, RT.q1);
-  mBlur.uniforms.t.value = RT.q1.texture; mBlur.uniforms.d.value.set(1.6 / (VW >> 2), 0); pass(mBlur, RT.q2);
-  mBlur.uniforms.t.value = RT.q2.texture; mBlur.uniforms.d.value.set(0, 1.6 / (VH >> 2)); pass(mBlur, RT.q1);
-  mFinal.uniforms.tScene.value = RT.scene.texture; mFinal.uniforms.tBlur.value = RT.h1.texture; mFinal.uniforms.tBloom.value = RT.q1.texture;
-  pass(mFinal, null);
+  mAO.uniforms.uProj.value.copy(camera.projectionMatrix); mAO.uniforms.uInv.value.copy(camera.projectionMatrixInverse); mAO.uniforms.uRes.value.set(VW >> 1, VH >> 1);
+  pass(mAO, RT.ao); blur2(RT.ao, RT.ao2, VW >> 1, VH >> 1, 1.1);
+  mCopy.uniforms.t.value = RT.scene.texture; pass(mCopy, RT.h1); blur2(RT.h1, RT.h2, VW >> 1, VH >> 1, 1.5);
+  mBright.uniforms.t.value = RT.h1.texture; pass(mBright, RT.q1); blur2(RT.q1, RT.q2, VW >> 2, VH >> 2, 1.6);
+  mCopy.uniforms.t.value = RT.q1.texture; pass(mCopy, RT.e1); blur2(RT.e1, RT.e2, VW >> 3, VH >> 3, 2);
+  const u = mFinal.uniforms;
+  if (u.uRays.value > .003) pass(mRays, RT.q2);
+  u.tScene.value = RT.scene.texture; u.tBlur.value = RT.h1.texture; u.tBloom.value = RT.q1.texture; u.tBloom2.value = RT.e1.texture; u.tAO.value = RT.ao.texture; u.tRays.value = RT.q2.texture;
+  u.uFocus.value = camFocus; u.uRange.value = camFocus * .8 + 3;
+  pass(mFinal, RT.ldr);
+  mFXAA.uniforms.t.value = RT.ldr.texture; mFXAA.uniforms.px.value.set(1 / VW, 1 / VH); pass(mFXAA, null);
 }
 
 /* ---------------------------------------------------------- materiales */
@@ -126,7 +173,7 @@ function enhance(mat, o = {}) {
         ${o.water ? 'vShore=aShore;' : ''}
         vWPos=wp0.xyz;vWN=normalize(mat3(modelMatrix)*objectNormal);`);
     s.fragmentShader = s.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;varying vec3 vWN;uniform float uSnow;uniform float uTime;uniform float uIce;uniform float uCloud;uniform vec3 uRim;uniform vec3 uSky;' + (o.water ? 'varying float vShore;' : '') + GLSL_NOISE)
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;varying vec3 vWN;uniform float uSnow;uniform float uTime;uniform float uIce;uniform float uCloud;uniform float uWet;uniform vec3 uRim;uniform vec3 uSky;' + (o.water ? 'varying float vShore;' : '') + GLSL_NOISE)
       .replace('#include <color_fragment>', `#include <color_fragment>
         ${o.noise ? `diffuseColor.rgb*=${(1 - o.noise / 2).toFixed(2)}+${o.noise.toFixed(2)}*vnoise(vWPos.xz*${(o.scale || 2.2).toFixed(1)});` : ''}
         ${o.water ? `float rp=vnoise(vWPos.xz*2.3+vec2(uTime*.16,uTime*.11));
@@ -136,12 +183,13 @@ function enhance(mat, o = {}) {
         wc=mix(wc,uSky,fr*.7);
         wc+=smoothstep(.70,.78,rp*.55+rp2*.55)*.25*(1.-uIce);
         float foam=smoothstep(.74,.92,vShore+(rp2-.5)*.4+sin(vShore*16.-uTime*1.8)*.07)*(1.-uIce);
+        wc+=smoothstep(.83,.9,vnoise(vWPos.xz*11.+floor(uTime*7.)*5.37))*uWet*.3;
         wc=mix(wc,vec3(1.),foam*.85);
         diffuseColor.rgb=mix(wc,vec3(.80,.90,.97)*(.9+.12*rp2),uIce*.92);` : ''}
         ${o.snow !== 0 ? `float sn=uSnow*smoothstep(.3,.75,vWN.y+(vnoise(vWPos.xz*3.4)-.5)*.35)*${(o.snow || 1).toFixed(2)};
         diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.92,.95,1.),sn);` : ''}
         float csh=smoothstep(.5,.74,vnoise(vWPos.xz*.19+uTime*vec2(.045,.024)));
-        diffuseColor.rgb*=1.-csh*uCloud*.32;`)
+        diffuseColor.rgb*=(1.-csh*uCloud*.32)*(1.-uWet*.13);`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         ${o.rim !== 0 ? 'totalEmissiveRadiance+=uRim*pow(1.-clamp(dot(normalize(vWN),normalize(cameraPosition-vWPos)),0.,1.),3.)*diffuseColor.rgb;' : ''}`);
   };
@@ -170,6 +218,7 @@ const MAT = {
   cloud: new T.MeshStandardMaterial({ color: 0xffffff, roughness: 1, emissive: 0xffffff, emissiveIntensity: .1 }),
   ghost: new T.MeshBasicMaterial({ color: 0xfff1d6, transparent: true, opacity: .5, depthWrite: false }),
   beacon: new T.MeshBasicMaterial({ color: 0xfff0c8 }),
+  crystal: new T.MeshBasicMaterial({ color: 0x66ffee }),
 };
 const flameMats = [new T.MeshBasicMaterial({ color: new T.Color().setRGB(2.6, .62, .12) }), new T.MeshBasicMaterial({ color: new T.Color().setRGB(3.2, 1.5, .3) }), new T.MeshBasicMaterial({ color: new T.Color().setRGB(3.4, 2.7, 1.3) })];
 
@@ -257,9 +306,9 @@ function makeCloud(r) {
 }
 function buildBackdrop() {
   const r = mulberry(77);
-  for (let i = 0; i < 22; i++) {
-    const m = makeCloud(r), low = i < 14;
-    const o = { m, a: r() * TAU, rad: low ? 13 + r() * 30 : 15 + r() * 22, y: low ? -5 - r() * 7 : 3.5 + r() * 7, sp: (.006 + r() * .012) * (r() < .5 ? 1 : .7), s: low ? 1.6 + r() * 2.4 : .8 + r() * 1.1 };
+  for (let i = 0; i < 16; i++) {
+    const m = makeCloud(r), low = i < 5;
+    const o = { m, a: r() * TAU, rad: low ? 30 + r() * 30 : 30 + r() * 30, y: low ? -6 - r() * 5 : 9 + r() * 9, sp: (.006 + r() * .012) * (r() < .5 ? 1 : .7), s: low ? 1.6 + r() * 2.4 : .8 + r() * 1.1 };
     m.scale.setScalar(o.s); m.rotation.y = r() * TAU; scene.add(m); clouds.push(o);
   }
   for (let i = 0; i < 4; i++) {

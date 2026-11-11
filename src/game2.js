@@ -169,6 +169,14 @@ function makeTile(q, r, terrain, lv = 0) {
   t.capMesh = null; t.ov = new T.Mesh(hexFlat, new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, fog: false }));
   t.ov.position.y = t.h + .02; t.ov.renderOrder = 2; t.ov.visible = false; g.add(t.ov);
   t.pick = new T.Mesh(pickGeo, pickMat); t.pick.position.y = t.h - .3; t.pick.userData.tile = t; g.add(t.pick); picks.push(t.pick);
+  // faldón de hierba que cuelga del borde, lianas en el perímetro y cristales bajo la isla
+  if (terrain !== 'water') {
+    const sk = [], out = Math.atan2(g.position.z, g.position.x);
+    for (let i = 0; i < 16; i++) { const a = i / 16 * TAU + rr() * .2, len = .1 + rr() * .14; sk.push([GEO.cone4, vary(0xffffff, rr, .1), MX(Math.cos(a) * .955, t.h - .1 - len / 2, Math.sin(a) * .955, .16, len, .07, -a + Math.PI / 2, Math.PI)]); }
+    if (t.d === RADIUS) for (let i = 0; i < 4; i++) { const a = out + (rr() - .5) * 1.6, len = .5 + rr() * 1.3; sk.push([GEO.cone4, 0xb8d8a0, MX(Math.cos(a) * .97, t.h - .15 - len / 2, Math.sin(a) * .97, .05, len, .05, 0, Math.PI)]); if (rr() < .5) sp(sk, 0xffe9a8, Math.cos(a) * .97, t.h - .2 - len * rr(), Math.sin(a) * .97, .07); }
+    const skm = mk(sk, terrain === 'rock' ? MAT.rockTop : MAT.tuft, false); g.add(skm);
+  }
+  if (t.d <= 4 && rr() < .45) { const c = new T.Mesh(GEO.oct, MAT.crystal), s = .5 + rr() * .9; c.scale.set(.22 * s, .8 * s, .22 * s); c.position.set(ox * .6 + (rr() - .5) * .5, top - depth - .25 * s, oz * .6 + (rr() - .5) * .5); c.rotation.set((rr() - .5) * .5, rr() * 3, (rr() - .5) * .5); g.add(c); }
   rebuildTile(t); world.add(g); return t;
 }
 function capFor(t) {
@@ -201,7 +209,7 @@ function rebuildTile(t) {
   const r = mulberry(t.seed + 11), tuft = [], fl = [], rk = [], trunk = [], pine = [], leaf = [], sm = [];
   const tufts = n => { for (let i = 0; i < n; i++) { const a = r() * TAU, rad = Math.sqrt(r()) * .78, x = Math.cos(a) * rad, z = Math.sin(a) * rad, tint = vary(0xffffff, r, .14); for (let j = 0; j < 3; j++) tuft.push([GEO.cone4, tint, MX(x + (j - 1) * .035, .06, z + (r() - .5) * .04, .045, .12 + r() * .1, .045, r() * 3, (r() - .5) * .5, (j - 1) * .35)]); } };
   if (t.terrain === 'meadow') {
-    tufts(7 + (r() * 6 | 0));
+    tufts(18 + (r() * 10 | 0));
     if (r() < .3) { const a = r() * TAU, rad = .2 + r() * .45, bc = vary(0x6aa857, r, .12); sp(sm, bc, Math.cos(a) * rad, .1, Math.sin(a) * rad, .3, .22, .28); sp(sm, bc, Math.cos(a) * rad + .14, .08, Math.sin(a) * rad + .06, .2, .16, .2); }
     const pal = [0xffffff, 0xffd166, 0xf28fb1, 0xb79cf0, 0xff9f6b]; const pc = pal[r() * 5 | 0];
     for (let i = 0, n = 3 + (r() * 6 | 0); i < n; i++) { const a = r() * TAU, rad = Math.sqrt(r()) * .75; sp(fl, r() < .7 ? pc : pal[r() * 5 | 0], Math.cos(a) * rad, .075 + r() * .05, Math.sin(a) * rad, .06 + r() * .03); }
@@ -210,11 +218,12 @@ function rebuildTile(t) {
     const pts = []; let guard = 0;
     while (pts.length < 3 + (r() * 2 | 0) && guard++ < 40) { const a = r() * TAU, rad = .12 + r() * .5, x = Math.cos(a) * rad, z = Math.sin(a) * rad; if (pts.every(p => (p[0] - x) ** 2 + (p[1] - z) ** 2 > .12)) pts.push([x, z]); }
     for (const [x, z] of pts) { const lf = leaf.length, s = .8 + r() * .5; t.topH = Math.max(t.topH, treeParts(trunk, pine, leaf, r, x, 0, z, s)); if (leaf.length > lf && r() < .6) for (let i = 0; i < 6; i++) { const a = r() * TAU, e = r() * 1.2; sp(fl, r() < .5 ? 0xffd9e6 : 0xffffff, x + Math.cos(a) * Math.cos(e) * .27 * s, .52 * s + Math.sin(e) * .25 * s, z + Math.sin(a) * Math.cos(e) * .27 * s, .06); } }
-    tufts(4); d.add(makeBlob(2.3, .3));
+    tufts(10); d.add(makeBlob(2.3, .3));
+    if (r() < .6) { const a = r() * TAU, x = Math.cos(a) * .62, z = Math.sin(a) * .62; trunk.push([GEO.cyl, 0x8a6248, MX(x, .05, z, .1, .36, .1, a, 0, Math.PI / 2)]); for (let i = 0; i < 3; i++) tuft.push([GEO.cone4, 0xd8f0b0, MX(x + (r() - .5) * .3, .09, z + (r() - .5) * .3, .16, .13, .03, r() * 3, .6)]); }
     if (r() < .5) { const a = r() * TAU; cy(sm, 0xf2e6d0, Math.cos(a) * .7, 0, Math.sin(a) * .7, .015, .06); sm.push([GEO.cone, 0xd9503c, MX(Math.cos(a) * .7, .075, Math.sin(a) * .7, .08, .04, .08)]); }
   } else if (t.terrain === 'rock') {
     for (let i = 0, n = 3 + (r() * 3 | 0); i < n; i++) { const a = r() * TAU, rad = r() * .5, s = .3 + r() * .42; sp(rk, vary(i % 3 ? 0x9d968e : 0x8b8590, r, .09), Math.cos(a) * rad, s * .28, Math.sin(a) * rad, s, s * (.7 + r() * .5), s * (.8 + r() * .3), GEO.dod, r() * TAU); t.topH = Math.max(t.topH, s * .7); }
-    tufts(2);
+    tufts(5);
   } else {
     for (let i = 0, n = r() * 3 | 0; i < n; i++) { const a = r() * TAU, rad = r() * .6, x = Math.cos(a) * rad, z = Math.sin(a) * rad; cy(sm, vary(0x5faa58, r, .1), x, .005, z, .09 + r() * .05, .012, GEO.cyl); if (r() < .5) sp(sm, 0xf7a8c4, x + .03, .04, z, .06); }
     if (r() < .7) { const a = r() * TAU; for (let i = 0; i < 4; i++) { const x = Math.cos(a + i * .14) * .82, z = Math.sin(a + i * .14) * .82, hh = .28 + r() * .2; tuft.push([GEO.cone4, 0xc8e6a0, MX(x, hh / 2, z, .03, hh, .03)]); if (i % 2) sm.push([GEO.cyl, 0x7a5236, MX(x, hh + .02, z, .04, .1, .04)]); } }
@@ -391,7 +400,7 @@ function checkWish() {
 
 /* ------------------------------------------------------ paso del día */
 async function endDay() {
-  if (busy || !started) return; busy = true; setTool(null); select(null); setHover(null); $('#hud').classList.add('busy'); sfx.dusk();
+  if (busy || !started) return; busy = true; setTool(null); select(null); setHover(null); $('#hud').classList.add('busy'); sfx.dusk(); gather = true; festOn = false;
   economy(); const ev = [], S = season(), W = weatherAt(G.day), hearthT = tmap.get('0,0');
   const t0 = tod; tween(2.2, k => tod = lerp(t0, .775, k), ease.inOut);
   await wait(.5); let i = 0;
@@ -416,7 +425,7 @@ async function endDay() {
   if (burnt) { floatAt(hearthT, `−${burnt} ${ic('wood')}`, 'neg', .9); sfx.crackleBig(); }
   renderRes(); syncVisuals();
   const fest = G.day % 6 === 5 && E.charm >= 6;
-  if (fest) { festival(); await wait(4.2); } else await wait(1.5);
+  if (fest) { festOn = true; festival(); await wait(5); } else await wait(1.5);
   // amanecer
   G.day++; const nS = season(), prevHib = G.hib;
   for (const k in G.buff) if (G.buff[k] > 0) G.buff[k]--;
@@ -431,6 +440,7 @@ async function endDay() {
   if (nS === 3 && G.hib + G.hungry > 0) G.flags.nap = true;
   if (G.day % 24 === 0) { if (!G.flags.nap) G.flags.cleanWinter = true; G.flags.nap = false; }
   merchantDawn(ev);
+  gather = false; festOn = false; for (const v of villagers) { v.s = 0; v.dir = 1; v.dwell = rnd(1, 3); }
   refresh(); sfx.dawn(); applySeason(false);
   await tween(2.6, k => tod = lerp(.98, 1.31, k), ease.inOut); tod = .31; dayClock = 0;
   if (nS !== S) seasonCard(nS);
@@ -468,7 +478,7 @@ function newGame(sv) {
   placeBuilding('hearth', tmap.get('0,0'), true);
   if (sv) { for (const [type, key, p, l, lv] of sv.b) { const b = placeBuilding(type, tmap.get(key), true); b.paused = !!p; b.lit = !!l; b.lv = lv || 1; applyLevel(b); } for (const [key, d] of sv.saps) setSapling(tmap.get(key), d); }
   tod = .31; dayClock = 0; tool = null; selected = null; hover = null; fresh.clear();
-  cat = 0; setupWaterfall(); setupMerchant(true); applySeason(true); refresh();
+  cat = 0; gather = false; setupWaterfall(); setupMerchant(true); setupLife(); applySeason(true); refresh();
 }
 
 /* ------------------------------------------------- estaciones y cielo */
@@ -480,6 +490,7 @@ function applySeason(instant) {
   const fs = season() < 2 ? 1 : .001;
   for (const t of tiles) if (t.flowers) { if (instant) t.flowers.scale.setScalar(fs); else if (Math.abs(t.flowers.scale.x - fs) > .01) { const a = t.flowers.scale.x, f = t.flowers; tween(1.5, k => f.scale.setScalar(lerp(a, fs, k))); } }
   if (instant) { MAT.grass.color.copy(vis.grass); MAT.tuft.color.copy(vis.tuft); MAT.leaf.color.copy(vis.leaf); MAT.pine.color.copy(vis.pine); U.uSnow.value = vis.snow; U.uIce.value = vis.snow; cur.overcast = vis.overcast; cur.fog = vis.fog; }
+  rainbowOn = G.day > 0 && w === 'sun' && weatherAt(G.day - 1) === 'rain' ? 1 : 0;
   if (audio.ctx) audio.setScale(season());
 }
 const cur = { overcast: 0, fog: 0, rain: 0, snowfall: 0, night: 0, day: 1, e: 1 };
@@ -489,7 +500,7 @@ const K = {}; for (const [n, v] of Object.entries({
   gold: { zen: 0x4f89cf, hor: 0xffdcb0, gnd: 0x7fa6d8, sun: 0xffc88a, hs: 0xc0d3ee, hg: 0x86705a },
   day: { zen: 0x3f8fe0, hor: 0xcfeaf7, gnd: 0x6fb0ea, sun: 0xfff2de, hs: 0xcfe4ff, hg: 0x8f8668 },
 })) { K[n] = {}; for (const [k, h] of Object.entries(v)) K[n][k] = new T.Color(h); }
-const _k = new T.Color(), _g = new T.Color(), sunDir = new T.Vector3(), moonDir = new T.Vector3(-.45, .72, -.52).normalize();
+const _sp = new T.Vector3(), _k = new T.Color(), _g = new T.Color(), sunDir = new T.Vector3(), moonDir = new T.Vector3(-.45, .72, -.52).normalize();
 function skyMix(e, key, out) {
   if (e < -.18) out.copy(K.night[key]); else if (e < .03) out.copy(K.night[key]).lerp(K.dusk[key], sstep(-.18, .03, e));
   else if (e < .32) out.copy(K.dusk[key]).lerp(K.gold[key], sstep(.03, .32, e)); else out.copy(K.gold[key]).lerp(K.day[key], sstep(.32, .78, e));
@@ -525,6 +536,11 @@ function updateSky(dt, time) {
   U.uCloud.value = dayF * (1 - oc) * (vis.snow ? .5 : 1); U.uSky.value.copy(skyU.uHor.value).lerp(skyU.uZen.value, .45); U.uRim.value.copy(hemi.color).multiplyScalar(.16 + .1 * night);
   skyU.uCloudAmt.value = .55 + oc * .45; if (waterfall) waterfall.m.material.uniforms.uLight.value = lerp(.3, 1.05, dayF) * (1 - oc * .25);
   // luces cálidas
+  // postproceso: rayos de sol y mojado
+  _sp.copy(camera.position).addScaledVector(sunDir, 300).project(camera); post.sun.set(_sp.x * .5 + .5, _sp.y * .5 + .5);
+  const rayT = _sp.z < 1 && Math.abs(_sp.x) < 2.2 && Math.abs(_sp.y) < 2.2 ? sstep(-.02, .14, e) * (1 - sstep(.5, .95, e) * .7) * (1 - oc) : 0;
+  mFinal.uniforms.uRays.value = damp(mFinal.uniforms.uRays.value, rayT * .55, 2, dt); mFinal.uniforms.uRayCol.value.copy(sun.color);
+  U.uWet.value = cur.rain; MAT.crystal.color.setRGB(.25 + .1 * Math.sin(time * 1.3), 1.5 + .5 * Math.sin(time * 1.3), 1.7 + .4 * Math.sin(time * .9));
   const fl = .8 + .12 * Math.sin(time * 11.3) + .08 * Math.sin(time * 23.7 + 1.3);
   MAT.win.color.setRGB(lerp(.03, 2.9, night), lerp(.025, 1.6, night), lerp(.02, .55, night));
   MAT.glass.emissiveIntensity = night * .9; MAT.beacon.color.setRGB(3.2 + Math.sin(time * 2) * .5, 2.5, 1.3);
@@ -593,36 +609,51 @@ function findPath(a, b) {
   }
   return [a, b];
 }
+let gather = false, festOn = false;
 function syncVillagers() {
-  const homes = [tmap.get('0,0'), tmap.get('0,0')];
+  const hub = tmap.get('0,0'), homes = [hub, hub];
   for (const b of G.buildings) if (b.type === 'cabin' && !b.cold) for (let i = 0; i < b.residents; i++) homes.push(b.tile);
-  const jobs = G.buildings.filter(b => DEF[b.type].worker && b.active);
-  while (villagers.length > jobs.length) world.remove(villagers.pop().m);
-  jobs.forEach((b, i) => {
-    let v = villagers[i]; const home = homes[i % homes.length];
-    if (!v) { v = villagers[i] = { m: villagerMesh(mulberry(i * 977 + G.seed)), s: 0, dir: 1, dwell: Math.random() * 3, key: '', sc: 0 }; world.add(v.m); }
-    const key = home.key + '>' + b.tile.key;
+  const jobs = G.buildings.filter(b => DEF[b.type].worker && b.active).map(b => b.tile);
+  const spots = G.buildings.filter(b => ['flowerbed', 'well', 'lantern', 'hive', 'granary', 'beacon'].includes(b.type)).map(b => b.tile);
+  const n = Math.min(homes.length, E.workers, 28), list = [];
+  for (let i = 0; i < n; i++) {
+    const home = homes[i]; let dest = jobs[i];
+    if (!dest) { const pool = spots.length ? spots : nbs(home).filter(t => t.terrain === 'meadow' && !t.b); dest = pool.length ? pool[(i * 7 + 3) % pool.length] : hub; if (dest === home) dest = nbs(home)[i % nbs(home).length]; }
+    list.push([home, dest]);
+  }
+  while (villagers.length > list.length) world.remove(villagers.pop().m);
+  list.forEach(([home, dest], i) => {
+    let v = villagers[i];
+    if (!v) { v = villagers[i] = { m: villagerMesh(mulberry(i * 977 + G.seed)), s: 0, dir: 1, dwell: Math.random() * 3, key: '', sc: 0, cur: new T.Vector2(home.group.position.x, home.group.position.z) }; world.add(v.m); }
+    const key = home.key + '>' + dest.key;
     if (v.key !== key) {
-      v.key = key; const path = findPath(home, b.tile); const pts = path.map(t => new T.Vector2(t.group.position.x, t.group.position.z));
-      if (pts.length > 1) { pts[0].lerp(pts[1], .42); const n = pts.length - 1; pts[n].lerp(pts[n - 1], .42); } else pts.push(pts[0].clone().add(new T.Vector2(.5, .2)));
-      const off = new T.Vector2(Math.cos(i * 2.4) * .12, Math.sin(i * 2.4) * .12); pts.forEach(p => p.add(off));
-      v.pts = pts; v.len = []; v.total = 0; for (let j = 1; j < pts.length; j++) { const l = pts[j].distanceTo(pts[j - 1]); v.len.push(l); v.total += l; }
+      v.key = key; const path = findPath(home, dest), pts = path.map(t => new T.Vector2(t.group.position.x, t.group.position.z));
+      if (pts.length > 1) { pts[0].lerp(pts[1], .42); const k = pts.length - 1; pts[k].lerp(pts[k - 1], .42); } else pts.push(pts[0].clone().add(new T.Vector2(.5, .2)));
+      const off = new T.Vector2(Math.cos(i * 2.4) * .13, Math.sin(i * 2.4) * .13); pts.forEach(p => p.add(off));
+      v.pts = pts; v.len = []; v.total = 0; for (let k = 1; k < pts.length; k++) { const l = pts[k].distanceTo(pts[k - 1]); v.len.push(l); v.total += l; }
       v.s = 0; v.dir = 1; v.dwell = Math.random() * 2;
     }
   });
 }
 const _v2 = new T.Vector2();
 function updateVillagers(dt, time) {
-  const sleepy = cur.night > .55;
+  const sleepy = cur.night > .55 && !gather, N = villagers.length;
   villagers.forEach((v, i) => {
     if (sleepy) v.dir = -1;
-    if (v.dwell > 0 && !sleepy) v.dwell -= dt; else { v.s += v.dir * dt * .6; if (v.s >= v.total) { v.s = v.total; v.dir = -1; v.dwell = rnd(6, 11); } else if (v.s <= 0) { v.s = 0; if (!sleepy) { v.dir = 1; v.dwell = rnd(2, 4); } } }
+    if (!gather) { if (v.dwell > 0 && !sleepy) v.dwell -= dt; else { v.s += v.dir * dt * .6; if (v.s >= v.total) { v.s = v.total; v.dir = -1; v.dwell = rnd(6, 11); } else if (v.s <= 0) { v.s = 0; if (!sleepy) { v.dir = 1; v.dwell = rnd(2, 4); } } } }
     let s = v.s, j = 0; while (j < v.len.length - 1 && s > v.len[j]) { s -= v.len[j]; j++; }
     _v2.copy(v.pts[j]).lerp(v.pts[j + 1], v.len[j] ? clamp(s / v.len[j]) : 0);
-    const t = tileAt(_v2.x, _v2.y), moving = v.dwell <= 0 && v.s > 0 && v.s < v.total, working = v.s >= v.total;
-    const hop = moving ? Math.abs(Math.sin(time * 9 + i)) * .035 : working ? Math.max(0, Math.sin(time * 5 + i)) * .03 : 0;
-    v.m.position.set(_v2.x, (t ? t.h + t.y : 0) + hop, _v2.y);
-    if (moving) { v.m.rotation.y = damp(v.m.rotation.y, Math.atan2(v.pts[j + 1].x - v.pts[j].x, v.pts[j + 1].y - v.pts[j].y) + (v.dir < 0 ? Math.PI : 0), 8, dt); }
+    let moving = v.dwell <= 0 && v.s > 0 && v.s < v.total, face = Math.atan2(v.pts[j + 1].x - v.pts[j].x, v.pts[j + 1].y - v.pts[j].y) + (v.dir < 0 ? Math.PI : 0);
+    const working = v.s >= v.total;
+    if (gather) { // al caer la tarde todos se reúnen en corro junto al fuego
+      const a = i / N * TAU + (festOn ? time * .5 : 0), rr = .66 + (i % 2) * .3 + (N > 12 ? (i % 3) * .16 : 0); _v2.set(Math.cos(a) * rr, Math.sin(a) * rr);
+      moving = v.cur.distanceTo(_v2) > .15; face = moving ? Math.atan2(_v2.x - v.cur.x, _v2.y - v.cur.y) : Math.atan2(-v.cur.x, -v.cur.y);
+    }
+    const l = gather ? 1.5 : 7; v.cur.x = damp(v.cur.x, _v2.x, l, dt); v.cur.y = damp(v.cur.y, _v2.y, l, dt);
+    const t = tileAt(v.cur.x, v.cur.y);
+    const hop = moving ? Math.abs(Math.sin(time * 9 + i)) * .035 : gather ? Math.abs(Math.sin(time * (festOn ? 7 : 2.4) + i)) * (festOn ? .08 : .018) : working ? Math.max(0, Math.sin(time * 5 + i)) * .03 : 0;
+    v.m.position.set(v.cur.x, (t ? t.h + t.y : 0) + hop, v.cur.y);
+    v.m.rotation.y = damp(v.m.rotation.y, face, 8, dt); v.m.rotation.z = gather && festOn ? Math.sin(time * 7 + i) * .15 : 0;
     v.sc = damp(v.sc, sleepy && v.s <= 0 ? 0 : 1, 5, dt); v.m.scale.setScalar(Math.max(.001, v.sc)); v.m.visible = v.sc > .02;
   });
 }
@@ -776,7 +807,7 @@ function renderBadges() {
   }
   for (const [b, el] of badges) if (!G.buildings.includes(b)) { el.remove(); badges.delete(b); }
 }
-function refresh() { economy(); renderDate(); renderRes(); renderBar(); renderWish(); renderInfo(); renderBadges(); renderChip(); syncVisuals(); syncVillagers(); updateHover(); }
+function refresh() { economy(); renderDate(); renderRes(); renderBar(); renderWish(); renderInfo(); renderBadges(); renderChip(); syncVisuals(); syncVillagers(); syncPaths(); updateHover(); }
 function setTool(t) { if (busy && t) return; tool = t; if (t) { select(null); sfx.select(); } showHint(t); document.querySelectorAll('.tool').forEach(b => b.classList.toggle('sel', b.dataset.t === t)); updateHover(); canvas.style.cursor = t ? 'crosshair' : ''; }
 function select(t) { selected = t; renderInfo(); }
 
@@ -884,7 +915,7 @@ function updateCamera(dt) {
   if (fx || fz) { const c = Math.cos(cam.yaw), s = Math.sin(cam.yaw), v = dt * 7; cam.txT = clamp(cam.txT + (fx * c + fz * s) * v, -7.5, 7.5); cam.tzT = clamp(cam.tzT + (-fx * s + fz * c) * v, -7.5, 7.5); }
   const l = REDUCED ? 30 : started ? 6 : 1.2;
   cam.yaw = damp(cam.yaw, cam.yawT, l, dt); cam.pitch = damp(cam.pitch, cam.pitchT, l, dt); cam.dist = damp(cam.dist, cam.distT, started ? 5 : 1.1, dt); cam.tx = damp(cam.tx, cam.txT, 6, dt); cam.tz = damp(cam.tz, cam.tzT, 6, dt);
-  camKick = damp(camKick, 0, 6, dt); const d = cam.dist - camKick, cp = Math.cos(cam.pitch);
+  camKick = damp(camKick, 0, 6, dt); camFocus = cam.dist * 1.02; const d = cam.dist - camKick, cp = Math.cos(cam.pitch);
   // en pantallas anchas el título ocupa la izquierda: desplaza el encuadre
   const shift = !started && innerWidth > 900 ? -4.2 : 0; cam.sh = damp(cam.sh || shift, shift, 1.5, dt);
   _t.set(cam.tx + Math.cos(cam.yaw) * cam.sh, -.6, cam.tz - Math.sin(cam.yaw) * cam.sh);
@@ -948,7 +979,7 @@ function frame(now) {
     if (t.wig > 0) { t.wig = Math.max(0, t.wig - dt * 1.6); const w = Math.sin(t.wig * 22) * t.wig * .07; t.deco.rotation.z = w; t.deco.rotation.x = w * .6; }
   }
   if (ghost && ghost.parent) ghost.scale.setScalar(1 + Math.sin(time * 4) * .025);
-  updateVillagers(dt, time); updateAmbient(dt, time); audio.update(dt);
+  updateVillagers(dt, time); updateLife(dt, time); updateAmbient(dt, time); audio.update(dt);
   fadeIn = Math.min(1, fadeIn + dt * .6); mFinal.uniforms.uFade.value = ease.out(fadeIn);
   mFinal.uniforms.uTilt.value = lerp(.95, .55, sstep(12, 30, cam.dist));
   renderFrame();
